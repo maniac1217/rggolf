@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알지골프 - 관리자 시스템</title>
+    <style>
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; background: #f5f6fa; margin: 0; padding: 15px; }
+        .admin-wrap { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { color: #2c3e50; font-size: 1.4rem; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
+        
+        #loginBox { text-align: center; padding: 40px 20px; }
+        #loginBox input { padding: 12px; font-size: 1.1rem; width: 80%; max-width: 200px; border-radius: 8px; border: 1px solid #ddd; text-align: center; margin-bottom: 15px; }
+        #loginBox button { background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        #mainDashboard { display: none; }
+        .filter-box { background: #edf2f7; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .date-inputs { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+        .date-inputs label { font-size: 0.85rem; font-weight: bold; color: #4a5568; }
+        input[type="date"] { padding: 10px; border: 1px solid #ccc; border-radius: 8px; width: 42%; font-size: 0.9rem; }
+        .btn-search { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        
+        .counter { font-weight: bold; color: #2980b9; margin: 10px 0; font-size: 1rem; text-align: right;}
+        
+        .card-list { display: flex; flex-direction: column; gap: 12px; }
+        .card { background: #fff; border: 1px solid #e1e8ed; padding: 15px; border-radius: 10px; }
+        .card-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #f1f2f6; padding-bottom: 8px; margin-bottom: 8px; }
+        .card-time { color: #27ae60; }
+        .card-body p { margin: 8px 0; font-size: 0.95rem; }
+        
+        /* 테이블 관리 도구 제어 버튼 셋 */
+        .controls { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #edf2f7; }
+        .btn-edit { background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; }
+        .btn-delete { background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; margin-left: auto; }
+        
+        .btn-back { display: block; text-align: center; margin-top: 25px; color: #95a5a6; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="admin-wrap">
+    <!-- 암호 인증 단락 -->
+    <div id="loginBox">
+        <h2>관리자 비밀번호 입력</h2>
+        <input type="password" id="adminPassword" placeholder="암호 4자리 입력" maxlength="4">
+        <br>
+        <button onclick="checkPassword()">로그인</button>
+    </div>
+
+    <!-- 대시보드 메인 제어 단락 -->
+    <div id="mainDashboard">
+        <h1>알지골프 예약 정보 관리</h1>
+        
+        <div class="filter-box">
+            <div class="date-inputs">
+                <label>시작</label>
+                <input type="date" id="startDate">
+                <label>종료</label>
+                <input type="date" id="endDate">
+            </div>
+            <button onclick="fetchData()" class="btn-search">기간 설정 조회</button>
+        </div>
+
+        <div class="counter" id="totalCount">조회 내역: 총 0건</div>
+
+        <div class="card-list" id="dataList">
+            <!-- 데이터 렌더링 스페이스 -->
+        </div>
+        
+        <a href="index.html" class="btn-back">⬅ 메인 예약화면으로 돌아가기</a>
+    </div>
+</div>
+
+<script>
+    let db;
+
+    // 1. 비밀번호 체크 체계
+    function checkPassword() {
+        const inputPw = document.getElementById('adminPassword').value;
+        if (inputPw === "1806") {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+            initDates();
+            openDBAndFetch();
+        } else {
+            alert("암호가 일치하지 않습니다.");
+            document.getElementById('adminPassword').value = "";
+        }
+    }
+
+    // 2. 날짜 선택기 기본 날짜 세팅 (한 달 전 ~ 오늘 일자 기본값 제안)
+    function initDates() {
+        const today = new Date();
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(today.getMonth() - 1);
+
+        document.getElementById('endDate').valueAsDate = today;
+        document.getElementById('startDate').valueAsDate = oneMonthAgo;
+    }
+
+    // 3. 데이터베이스 커넥션 구축 후 조회 연동
+    function openDBAndFetch() {
+        const request = indexedDB.open("RG_Golf_DB", 1);
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            fetchData();
+        };
+    }
+
+    // 4. 입력받은 조회시작일자 ~ 조회종료일자 사이 필터 기반 IndexedDB 전체 조회 
+    function fetchData() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+
+        if (!start || !end) {
+            alert("조회 시작일자와 종료일자를 모두 입력해주세요.");
+            return;
+        }
+
+        const transaction = db.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const getAllRequest = store.getAll();
+
+        getAllRequest.onsuccess = function() {
+            const allData = getAllRequest.result;
+            
+            // 사용자가 선택한 시작일 ~ 종료일 기간 필터링 진행
+            const filteredData = allData.filter(item => {
+                return item.createdAt >= start && item.createdAt <= end;
+            });
+
+            // 최신 시간순 리스트 정렬
+            filteredData.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+            renderList(filteredData);
+        };
+    }
+
+    // 5. 조회된 내용 브라우저 카드형 리스트 렌더링
+    function renderList(data) {
+        const container = document.getElementById('dataList');
+        container.innerHTML = "";
+        document.getElementById('totalCount').innerText = `조회 내역: 총 ${data.length}건`;
+
+        if(data.length === 0) {
+            container.innerHTML = "<p style='text-align:center;color:#95a5a6;padding:30px;'>선택하신 기간 내 예약 내역이 없습니다.</p>";
+            return;
+        }
+
+        data.forEach(item => {
+            const cardHtml = `
+                <div class="card" id="card-${item.id}">
+                    <div class="card-header">
+                        <span class="card-time">⏰ ${item.time}</span>
+                        <span id="status-text-${item.id}" style="font-weight:bold; color:#2c3e50;">[${item.status}]</span>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>예약자:</strong> ${item.name}</p>
+                        <p><strong>인원수:</strong> <span id="count-text-${item.id}">${item.count}</span></p>
+                        <p><strong>연락처:</strong> <a href="tel:${item.phone}" style="color:#2980b9; text-decoration:none;">${item.phone}</a></p>
+                        
+                        <div class="controls">
+                            <button onclick="updateReservation(${item.id})" class="btn-edit">✏️ 정보수정</button>
+                            <button onclick="deleteReservation(${item.id})" class="btn-delete">🗑️ 삭제</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += cardHtml;
+        });
+    }
+
+    // 6. [IndexedDB 데이터 수정 기능] 인원수 및 상태 값 갱신
+    function updateReservation(id) {
+        const transaction = db.transaction(["reservations"], "readwrite");
+        const store = transaction.objectStore("reservations");
+        const getRequest = store.get(id);
+
+        getRequest.onsuccess = function() {
+            const data = getRequest.result;
+            
+            // 사용자 입력 얼럿창 프롬프트를 통한 데이터 수정 제어
+            const newCount = prompt("변경할 예약 인원수를 입력하세요 (예: 3명):", data.count);
+            if (newCount === null) return; // 취소 클릭 시 중단
+            
+            const newStatus = prompt("변경할 접수 상태를 입력하세요 (예: 예약확정, 현장결제요청, 취소건):", data.status);
+            if (newStatus === null) return;
+
+            data.count = newCount;
+            data.status = newStatus;
+
+            const updateRequest = store.put(data);
+            updateRequest.onsuccess = function() {
+                alert("예약 정보가 정상적으로 수정되었습니다.");
+                fetchData(); // 수정 완료 후 목록 새로고침
+            };
+        };
+    }
+
+    // 7. [IndexedDB 데이터 삭제 기능]
+    function deleteReservation(id) {
+        if (confirm("정말로 해당 예약 내역을 영구 삭제하시겠습니까? 데이터는 복구되지 않습니다.")) {
+            const transaction = db.transaction(["reservations"], "readwrite");
+            const store = transaction.objectStore("reservations");
+            const deleteRequest = store.delete(id);
+
+            deleteRequest.onsuccess = function() {
+                alert("해당 예약 데이터가 데이터베이스에서 정상 삭제되었습니다.");
+                fetchData(); // 삭제 완료 후 목록 새로고침
+            };
+        }
+    }
+</script>
+</body>
+</html>
