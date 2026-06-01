@@ -99,36 +99,37 @@ function handleBooking() {
 // 5. 순차 실행 처리 함수
 // 기존 sendSms 함수를 지우고 이 코드로 덮어쓰기 합니다.
 function sendSms() {
-    const url = getSmsUrl();
+    // 1. IndexedDB 저장 등은 기존 모달 클릭 시 이미 완료된 상태입니다.
     
-    // 1단계: 문자 앱 실행
-    window.location.href = url;
-    
-    // 2단계: 문자 앱으로 전환되는 즉시 원래 웹 화면의 모달 내용을 "전화 걸기" 안내로 변경
+    // 2. 모달창 내부를 '문자 발송' 안내로 즉시 전환하여 배경에 깔아둡니다.
     const modalBody = document.querySelector('.modal-body');
     if (modalBody) {
         modalBody.innerHTML = `
-            <p class="status-msg" style="color:#007bff; font-weight:bold;">
-                문자 신청이 완료되었나요?<br>
-                아래 버튼을 눌러 예약을 확정해 주세요!
+            <p class="status-msg" style="color:#007bff; font-weight:bold; font-size:16px;">
+                통화 종료 후 아래 버튼을 누르면<br>
+                예약 문자 전송 창으로 연결됩니다!
             </p>
             <div class="button-group">
-                <button onclick="triggerPhoneCall()" class="btn-action" style="background:#28a745; color:#fff; font-size:18px; padding:15px 0;">
-                    📞 매장으로 전화 걸기 (최종 확정)
+                <button onclick="triggerActualSms()" class="btn-action copy" style="font-size:18px; padding:15px 0;">
+                    💬 2단계: 예약 문자 발송하기
                 </button>
                 <button onclick="closeModal()" class="btn-action close" style="margin-top:10px;">창 닫기</button>
             </div>
         `;
     }
-}
 
-// 사용자가 돌아와서 누를 전화 걸기 함수
-function triggerPhoneCall() {
+    // 3. 브라우저 제어권을 뺏기지 않는 '전화 걸기'를 즉시 먼저 실행합니다.
     const telLink = document.getElementById('hiddenTelLink');
     if (telLink) {
         telLink.click();
     }
-    closeModal();
+}
+
+// 사용자가 돌아와서 누를 전화 걸기 함수
+function triggerActualSms() {
+    const url = getSmsUrl();
+    window.location.href = url; // 문자 앱으로 이동
+    closeModal(); // 모달 닫기
 }
 
 // 계좌 복사 시 작동
