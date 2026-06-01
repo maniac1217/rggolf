@@ -5,6 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>알지골프 - 실시간 예약 시스템</title>
     <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .modal-overlay {
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.6); 
+            z-index: 9999; 
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #fff; padding: 20px; border-radius: 12px; 
+            width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .account-box { background: #f7f7f7; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px solid #ddd; }
+        .price-info { margin-bottom: 20px; font-size: 16px; }
+        .price { color: #e53935; font-weight: bold; }
+        .btn-action { width: 100%; padding: 12px 0; margin: 5px 0; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-action.copy { background: #fee500; color: #191919; } /* 카카오 느낌 노란색 */
+        .btn-action.later { background: #555; color: #fff; }
+        .btn-action.close { background: #eee; color: #333; }
+    </style>
 </head>
 <body>
     <div class="booking-container">
@@ -32,7 +54,7 @@
             </div>
             
             <div class="button-group">
-                <button type="button" onclick="handleBooking()" class="btn-combined">
+                <button type="button" onclick="handleBooking()" class="btn-combined" style="width:100%; padding:15px; font-size:16px; font-weight:bold; background:#007bff; color:#fff; border:none; border-radius:8px; cursor:pointer;">
                     예약 신청 (문자 전송 후 전화 연결)
                 </button>
             </div>
@@ -40,6 +62,7 @@
             <a id="hiddenSmsLink" href="sms:01099901806" style="display:none;"></a>
             <a id="hiddenTelLink" href="tel:01099901806" style="display:none;"></a>
             
+            <br>
             <a href="admin.html" class="btn-admin-link">📢 관리자 페이지 이동</a>
         </section>
 
@@ -51,15 +74,15 @@
     <div id="modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>예약 신청 확인</h3>
+                <h3 style="margin-top:0;">예약 신청 확인</h3>
             </div>
             <div class="modal-body">
                 <p class="status-msg">신청이 접수되었습니다.<br>확정을 위해 입금해 주시거나<br>아래 버튼을 눌러 문자를 발송해주세요.</p>
                 
                 <div class="account-box">
-                    <span class="bank-label">카카오뱅크</span>
-                    <strong id="accountNum">7942-25-80482</strong>
-                    <span class="account-holder">예금주: 한용섭</span>
+                    <span class="bank-label" style="display:block; font-size:12px; color:#666;">카카오뱅크</span>
+                    <strong id="accountNum" style="font-size:18px; color:#222;">7942-25-80482</strong><br>
+                    <span class="account-holder" style="font-size:13px; color:#444;">예금주: 한용섭</span>
                 </div>
                 
                 <div class="price-info">
@@ -78,4 +101,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>  
+</html>
