@@ -31,8 +31,14 @@
                 <label for="bookingTime">예약 일시</label>
                 <input type="datetime-local" id="bookingTime" required>
             </div>
-            <button type="button" onclick="handleBooking()" class="btn-primary">예약 신청 및 문자전송</button>
-            <a href="tel:01035028232" class="btn-tel">매장으로 전화 걸기</a>
+            <div class="button-group">
+              <button type="button" onclick="startSequentialAction()" class="btn-combined">
+               예약 신청 (문자 전송 후 전화 연결)
+              </button>
+           </div>
+
+       <a id="hiddenSmsLink" href="sms:01099901806" style="display:none;"></a>
+       <a id="hiddenTelLink" href="tel:050713998800" style="display:none;"></a>
             <a href="admin.html" class="btn-admin-link">📢 관리자 페이지 이동</a>
         </section>
 
