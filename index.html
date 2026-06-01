@@ -24,30 +24,30 @@
             </div>
             <div class="input-group">
                 <label for="userCount">예약 인원 (명)</label>
-                <!-- 사용자가 인원을 직접 입력할 수 있도록 숫자 필드로 변경 -->
                 <input type="number" id="userCount" min="1" max="20" value="2" required>
             </div>
             <div class="input-group">
                 <label for="bookingTime">예약 일시</label>
                 <input type="datetime-local" id="bookingTime" required>
             </div>
+            
             <div class="button-group">
-              <button type="button" onclick="startSequentialAction()" class="btn-combined">
-               예약 신청 (문자 전송 후 전화 연결)
-              </button>
-           </div>
+                <button type="button" onclick="handleBooking()" class="btn-combined">
+                    예약 신청 (문자 전송 후 전화 연결)
+                </button>
+            </div>
 
-               <a id="hiddenSmsLink" href="sms:01099901806" style="display:none;"></a>
-               <a id="hiddenTelLink" href="tel:050713998800" style="display:none;"></a>
-              <a href="admin.html" class="btn-admin-link">📢 관리자 페이지 이동</a>
+            <a id="hiddenSmsLink" href="sms:01099901806" style="display:none;"></a>
+            <a id="hiddenTelLink" href="tel:01099901806" style="display:none;"></a>
+            
+            <a href="admin.html" class="btn-admin-link">📢 관리자 페이지 이동</a>
         </section>
 
         <footer>
             <p>© 2026 RG GOLF. All rights reserved.</p>
         </footer>
     </div>
-    <a id="hiddenTelLink" href="tel:050713998800" style="display:none;"></a>
-    <!-- 모달 팝업 (입금 및 확인 안내) -->
+
     <div id="modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -78,4 +78,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>
+</html>  
