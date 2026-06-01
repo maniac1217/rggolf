@@ -1,4 +1,4 @@
-const ADMIN_PHONE = "01035028232";
+const ADMIN_PHONE = "01099901806"; // 이전 대화의 요구사항에 맞춰 문자 수신 번호 설정
 let db;
 
 // 1. IndexedDB 데이터베이스 초기화 및 생성
@@ -62,6 +62,68 @@ function handleBooking() {
 
     if (!name || !phone || !count || !time) {
         alert("모든 예약 정보를 정확히 입력해주세요.");
+        return;
+    }
+    if (parseInt(count, 10) < 1) {
+        alert("최소 1명 이상 입력하셔야 합니다.");
+        return;
+    }
+
+    document.getElementById('modal').style.display = 'flex';
+}
+
+// ★ [핵심 수정] 문자 전송 후 브라우저 복귀 시 전화 연결을 순차 실행하는 기능
+function sendSms() {
+    const url = getSmsUrl();
+    
+    // 1단계: 문자 앱을 먼저 실행시킵니다.
+    window.location.href = url;
+    
+    // 2단계: 사용자가 문자 발송(또는 취소) 후 브라우저로 다시 '돌아오는 포커스'를 감지합니다.
+    window.addEventListener('focus', function triggerTel() {
+        // 숨겨둔 전화 링크를 클릭하여 010-9990-1806 으로 전화를 연결합니다.
+        document.getElementById('hiddenTelLink').click();
+        
+        // 이벤트가 한 번만 실행되도록 리스너를 즉시 제거합니다.
+        window.removeEventListener('focus', triggerTel);
+    }, { once: true });
+}
+
+// 계좌 복사 시 작동
+function copyAccount() {
+    const account = "79422580482"; 
+    
+    navigator.clipboard.writeText(account).then(() => {
+        alert("카카오뱅크 계좌번호가 복사되었습니다! 확인을 누르면 문자 발송 화면으로 이동하며, 이후 전화 연결이 진행됩니다.");
+        saveToIndexedDB("입금요청/문자접수");
+        sendSms();
+        closeModal(); // 모달 닫기 추가
+    }).catch(() => {
+        saveToIndexedDB("입금요청/문자접수");
+        sendSms();
+        closeModal();
+    });
+}
+
+// 나중에 입금(현장 결제) 시 작동
+function handleLaterPay() {
+    if(confirm("현장 결제로 예약 문자를 발송하시겠습니까? (문자 발송 후 매장 전화 연결)")) {
+        saveToIndexedDB("현장결제요청");
+        sendSms();
+        closeModal();
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('modal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}        alert("모든 예약 정보를 정확히 입력해주세요.");
         return;
     }
     if (parseInt(count, 10) < 1) {
