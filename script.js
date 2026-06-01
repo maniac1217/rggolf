@@ -1,23 +1,28 @@
-const ADMIN_PHONE = "01099901806"; // 문자 수신 및 전화 연결 대상 관리자 번호
-let db;
+const ADMIN_PHONE = "01099901806"; 
+let db = null;
 
-// 1. IndexedDB 데이터베이스 초기화 및 생성
-const request = indexedDB.open("RG_Golf_DB", 1);
+// 1. IndexedDB 데이터베이스 초기화 (오류 발생 시에도 전체 스크립트가 멈추지 않도록 조치)
+try {
+    const request = indexedDB.open("RG_Golf_DB", 1);
 
-request.onupgradeneeded = function(event) {
-    db = event.target.result;
-    if (!db.objectStoreNames.contains("reservations")) {
-        db.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
-    }
-};
+    request.onupgradeneeded = function(event) {
+        db = event.target.result;
+        if (!db.objectStoreNames.contains("reservations")) {
+            db.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
+        }
+    };
 
-request.onsuccess = function(event) {
-    db = event.target.result;
-};
+    request.onsuccess = function(event) {
+        db = event.target.result;
+        console.log("Database 연결 성공");
+    };
 
-request.onerror = function(event) {
-    console.error("Database 에러: " + event.target.errorCode);
-};
+    request.onerror = function(event) {
+        console.error("Database 에러: ", event.target.errorCode);
+    };
+} catch (e) {
+    console.error("IndexedDB를 지원하지 않거나 환경적 제약이 있습니다.", e);
+}
 
 // 2. 예약 정보 취합 및 문자 URL 생성 함수
 function getSmsUrl() {
@@ -32,35 +37,46 @@ function getSmsUrl() {
     return `sms:${ADMIN_PHONE}?body=${encodeURIComponent(message)}`;
 }
 
-// 3. IndexedDB 데이터 저장 로직
+// 3. IndexedDB 데이터 저장 로직 (DB가 없어도 에러 없이 넘어가도록 보강)
 function saveToIndexedDB(status) {
-    const name = document.getElementById('userName').value.trim();
-    const phone = document.getElementById('userPhone').value.trim();
-    const count = parseInt(document.getElementById('userCount').value, 10);
-    const time = document.getElementById('bookingTime').value.replace('T', ' ');
+    try {
+        const name = document.getElementById('userName').value.trim();
+        const phone = document.getElementById('userPhone').value.trim();
+        const count = parseInt(document.getElementById('userCount').value, 10);
+        const time = document.getElementById('bookingTime').value.replace('T', ' ');
 
-    const newReservation = {
-        name: name,
-        phone: phone,
-        count: count + "명", // '명' 단위를 붙여서 저장
-        time: time,
-        status: status,
-        createdAt: time.split(' ')[0] // 예약 실행 날짜 기준 필터링을 위해 추출
-    };
+        const newReservation = {
+            name: name,
+            phone: phone,
+            count: count + "명",
+            time: time,
+            status: status,
+            createdAt: time.split(' ')[0]
+        };
 
-    const transaction = db.transaction(["reservations"], "readwrite");
-    const store = transaction.objectStore("reservations");
-    store.add(newReservation);
+        if (db) {
+            const transaction = db.transaction(["reservations"], "readwrite");
+            const store = transaction.objectStore("reservations");
+            store.add(newReservation);
+        } else {
+            console.warn("DB가 초기화되지 않아 로컬 저장을 건너뜁니다.");
+        }
+    } catch (error) {
+        console.error("데이터 저장 중 오류 발생: ", error);
+    }
 }
 
-// 4. 예약 신청하기 메인 제어 (HTML 버튼과 연결됨)
+// 4. 예약 신청하기 메인 제어 (버튼 클릭 시 가장 먼저 실행됨)
 function handleBooking() {
+    // 함수가 정상 호출되는지 확인하는 로그
+    console.log("handleBooking() 함수 시작됨");
+
     const name = document.getElementById('userName').value.trim();
     const phone = document.getElementById('userPhone').value.trim();
     const count = document.getElementById('userCount').value;
     const time = document.getElementById('bookingTime').value;
 
-    // 입력 유효성 검사
+    // 입력 검증
     if (!name || !phone || !count || !time) {
         alert("모든 예약 정보를 정확히 입력해주세요.");
         return;
@@ -70,23 +86,26 @@ function handleBooking() {
         return;
     }
 
-    // 검사 통과 시 모달창 열기
-    document.getElementById('modal').style.display = 'flex';
+    // 모달 요소를 찾아서 띄우기
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        console.log("모달 표시 완료");
+    } else {
+        alert("화면에 모달 레이아웃(id='modal')을 찾을 수 없습니다.");
+    }
 }
 
-// 5. 문자 전송 후 브라우저 복귀 시 전화 연결을 순차 실행하는 핵심 기능
+// 5. 순차 실행 처리 함수
 function sendSms() {
     const url = getSmsUrl();
-    
-    // 1) 문자 앱을 먼저 실행시킵니다.
     window.location.href = url;
     
-    // 2) 사용자가 문자 발송(또는 취소) 후 웹 화면으로 돌아오는(focus) 순간을 감지합니다.
     window.addEventListener('focus', function triggerTel() {
-        // HTML 내 숨겨진 전화 링크를 클릭하여 전화를 연결합니다.
-        document.getElementById('hiddenTelLink').click();
-        
-        // 중복 실행을 막기 위해 이벤트 리스너를 즉시 제거합니다.
+        const telLink = document.getElementById('hiddenTelLink');
+        if (telLink) {
+            telLink.click();
+        }
         window.removeEventListener('focus', triggerTel);
     }, { once: true });
 }
@@ -101,7 +120,6 @@ function copyAccount() {
         sendSms();
         closeModal();
     }).catch(() => {
-        // 클립보드 복사 실패 시에도 로직은 정상 유지
         saveToIndexedDB("입금요청/문자접수");
         sendSms();
         closeModal();
@@ -122,7 +140,7 @@ function closeModal() {
     document.getElementById('modal').style.display = 'none';
 }
 
-// 모달 바깥 영역 클릭 시 닫기
+// 모달 바깥 클릭 시 닫기
 window.onclick = function(event) {
     const modal = document.getElementById('modal');
     if (event.target == modal) {
