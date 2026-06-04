@@ -1,49 +1,98 @@
-const ADMIN_PHONE = "01099901806"; 
+// =======================
+// 기본 상수 / 전역 변수
+// =======================
+const ADMIN_PHONE = "01099901806";   // 문자 수신 번호
+const CALL_PHONE  = "0538178800";    // 매장 전화번호
 let db = null;
 
-// 1. IndexedDB 데이터베이스 초기화 (오류 발생 시에도 전체 스크립트가 멈추지 않도록 조치)
+// =======================
+// 1. 예약 일시 기본값 세팅
+// =======================
+window.addEventListener('DOMContentLoaded', () => {
+    const dtInput = document.getElementById('bookingTime');
+    if (dtInput) {
+        // 로컬 타임존 보정 후 datetime-local 형식으로 변환[web:18]
+        const now = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16); // "YYYY-MM-DDTHH:MM"
+        dtInput.value = now;
+        dtInput.setAttribute('min', now);
+    }
+});
+
+// =======================
+// 2. IndexedDB 초기화
+// =======================
 try {
     const request = indexedDB.open("RG_Golf_DB", 1);
 
-    request.onupgradeneeded = function(event) {
+    request.onupgradeneeded = function (event) {
         db = event.target.result;
         if (!db.objectStoreNames.contains("reservations")) {
             db.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
         }
     };
 
-    request.onsuccess = function(event) {
+    request.onsuccess = function (event) {
         db = event.target.result;
         console.log("Database 연결 성공");
     };
 
-    request.onerror = function(event) {
+    request.onerror = function (event) {
         console.error("Database 에러: ", event.target.errorCode);
     };
 } catch (e) {
     console.error("IndexedDB를 지원하지 않거나 환경적 제약이 있습니다.", e);
 }
 
-// 2. 예약 정보 취합 및 문자 URL 생성 함수
-function getSmsUrl() {
-    const name = document.getElementById('userName').value.trim();
-    const phone = document.getElementById('userPhone').value.trim();
-    const count = document.getElementById('userCount').value.trim();
-    const time = document.getElementById('bookingTime').value;
+// =======================
+// 3. 공통 유틸: 모바일 OS 판별 / SMS URL 생성
+// =======================
 
-    const formattedTime = time.replace('T', ' ');
-    const message = `[알지골프 예약신청]\n성함: ${name}\n인원: ${count}명\n연락처: ${phone}\n시간: ${formattedTime}\n예약 확인 부탁드립니다.`;
-    
-    return `sms:${ADMIN_PHONE}?body=${encodeURIComponent(message)}`;
+// 안드로이드 / iOS / 기타 구분[web:14][web:34]
+function getMobileOS() {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.indexOf('android') > -1) return 'android';
+    if (ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 || ua.indexOf('ipod') > -1) return 'ios';
+    return 'other';
 }
 
-// 3. IndexedDB 데이터 저장 로직 (DB가 없어도 에러 없이 넘어가도록 보강)
+// 입력값 기반 SMS URL 생성 (OS에 맞는 ?body / &body 적용)[web:14][web:20][web:31][web:34]
+function getSmsUrl() {
+    const name  = document.getElementById('userName').value.trim();
+    const phone = document.getElementById('userPhone').value.trim();
+    const count = document.getElementById('userCount').value.trim();
+    const time  = document.getElementById('bookingTime').value;
+
+    const formattedTime = time ? time.replace('T', ' ') : '';
+    const message =
+        `[알지골프 예약신청]\n` +
+        `성함: ${name}\n` +
+        `인원: ${count}명\n` +
+        `연락처: ${phone}\n` +
+        `시간: ${formattedTime}\n` +
+        `예약 확인 부탁드립니다.`;
+
+    const os = getMobileOS();
+    if (os === 'other') {
+        alert("문자 기능은 모바일 기기에서 사용 가능합니다.\n직접 문자 또는 전화를 이용해 주세요.");
+        return null;
+    }
+
+    const bodyConnector = (os === 'ios') ? '&' : '?';  // iOS: &body, Android: ?body[web:14][web:31][web:34]
+    return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
+}
+
+// =======================
+// 4. IndexedDB 저장
+// =======================
 function saveToIndexedDB(status) {
     try {
-        const name = document.getElementById('userName').value.trim();
+        const name  = document.getElementById('userName').value.trim();
         const phone = document.getElementById('userPhone').value.trim();
         const count = parseInt(document.getElementById('userCount').value, 10);
-        const time = document.getElementById('bookingTime').value.replace('T', ' ');
+        const timeRaw = document.getElementById('bookingTime').value || '';
+        const time = timeRaw ? timeRaw.replace('T', ' ') : '';
 
         const newReservation = {
             name: name,
@@ -51,7 +100,7 @@ function saveToIndexedDB(status) {
             count: count + "명",
             time: time,
             status: status,
-            createdAt: time.split(' ')[0]
+            createdAt: time.split(' ')[0] || ''
         };
 
         if (db) {
@@ -66,17 +115,17 @@ function saveToIndexedDB(status) {
     }
 }
 
-// 4. 예약 신청하기 메인 제어 (버튼 클릭 시 가장 먼저 실행됨)
+// =======================
+// 5. 예약 신청 메인 제어
+// =======================
 function handleBooking() {
-    // 함수가 정상 호출되는지 확인하는 로그
     console.log("handleBooking() 함수 시작됨");
 
-    const name = document.getElementById('userName').value.trim();
+    const name  = document.getElementById('userName').value.trim();
     const phone = document.getElementById('userPhone').value.trim();
     const count = document.getElementById('userCount').value;
-    const time = document.getElementById('bookingTime').value;
+    const time  = document.getElementById('bookingTime').value;
 
-    // 입력 검증
     if (!name || !phone || !count || !time) {
         alert("모든 예약 정보를 정확히 입력해주세요.");
         return;
@@ -86,7 +135,6 @@ function handleBooking() {
         return;
     }
 
-    // 모달 요소를 찾아서 띄우기
     const modal = document.getElementById('modal');
     if (modal) {
         modal.style.display = 'flex';
@@ -96,76 +144,97 @@ function handleBooking() {
     }
 }
 
-// 5. 순차 실행 처리 함수
-// 기존 sendSms 함수를 지우고 이 코드로 덮어쓰기 합니다.
-function sendSms() {
-    // 1. IndexedDB 저장 등은 기존 모달 클릭 시 이미 완료된 상태입니다.
-    
-    // 2. 모달창 내부를 '문자 발송' 안내로 즉시 전환하여 배경에 깔아둡니다.
-    const modalBody = document.querySelector('.modal-body');
-    if (modalBody) {
-        modalBody.innerHTML = `
-            <p class="status-msg" style="color:#007bff; font-weight:bold; font-size:16px;">
-                통화 종료 후 아래 버튼을 누르면<br>
-                예약 문자 전송 창으로 연결됩니다!
-            </p>
-            <div class="button-group">
-                <button onclick="triggerActualSms()" class="btn-action copy" style="font-size:18px; padding:15px 0;">
-                    💬 2단계: 예약 문자 발송하기
-                </button>
-                <button onclick="closeModal()" class="btn-action close" style="margin-top:10px;">창 닫기</button>
-            </div>
-        `;
-    }
+// =======================
+// 6. 모달 내부: 문자/전화 단계 UI 구성
+// =======================
 
-    // 3. 브라우저 제어권을 뺏기지 않는 '전화 걸기'를 즉시 먼저 실행합니다.
-    const telLink = document.getElementById('hiddenTelLink');
-    if (telLink) {
-        telLink.click();
-    }
+// 문자 발송 + 전화하기 버튼 UI로 모달 내용을 전환
+function sendSms() {
+    const modalBody = document.querySelector('.modal-body');
+    if (!modalBody) return;
+
+    modalBody.innerHTML = `
+        <p class="status-msg" style="color:#007bff; font-weight:bold; font-size:16px;">
+            1단계: 아래 버튼을 눌러 예약 문자를 보내주세요.<br>
+            2단계: 문자 발송 후, 다시 이 화면으로 돌아와 전화 버튼을 눌러주세요.
+        </p>
+        <div class="button-group">
+            <button onclick="triggerActualSms()" class="btn-action copy" style="font-size:18px; padding:12px 0;">
+                💬 1단계: 예약 문자 발송
+            </button>
+            <button onclick="callToCenter()" class="btn-action later" style="font-size:18px; padding:12px 0; margin-top:8px;">
+                📞 2단계: 매장으로 전화하기
+            </button>
+            <button onclick="closeModal()" class="btn-action close" style="margin-top:10px;">창 닫기</button>
+        </div>
+    `;
+
+    const modal = document.getElementById('modal');
+    if (modal) modal.style.display = 'flex';
 }
 
-// 사용자가 돌아와서 누를 전화 걸기 함수
+// 실제 문자 앱 호출 (사용자 클릭 1번 = sms URL 호출)[web:14][web:20][web:31][web:34]
 function triggerActualSms() {
     const url = getSmsUrl();
-    window.location.href = url; // 문자 앱으로 이동
-    closeModal(); // 모달 닫기
+    if (url) {
+        window.location.href = url;
+    }
 }
 
-// 계좌 복사 시 작동
+// 전화 연결 (사용자 클릭 1번 = tel URL 호출)[web:34]
+function callToCenter() {
+    const telLink = document.getElementById('hiddenTelLink');
+    if (telLink) {
+        telLink.href = `tel:${CALL_PHONE}`;
+        telLink.click();
+    } else {
+        window.location.href = `tel:${CALL_PHONE}`;
+    }
+}
+
+// =======================
+// 7. 계좌 복사 / 현장결제 버튼 로직
+// =======================
 function copyAccount() {
     const account = "79422580482"; 
-    
-    navigator.clipboard.writeText(account).then(() => {
-        alert("카카오뱅크 계좌번호가 복사되었습니다!\n확인을 누르면 문자 발송 후 매장 전화 연결이 순차적으로 진행됩니다.");
-        saveToIndexedDB("입금요청/문자접수");
-        sendSms();
-        closeModal();
-    }).catch(() => {
-        saveToIndexedDB("입금요청/문자접수");
-        sendSms();
-        closeModal();
-    });
-}
 
-// 나중에 입금(현장 결제) 시 작동
-function handleLaterPay() {
-    if(confirm("현장 결제로 예약 문자를 발송하시겠습니까?\n(문자 발송 후 매장 전화 연결이 진행됩니다.)")) {
-        saveToIndexedDB("현장결제요청");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(account).then(() => {
+            alert("카카오뱅크 계좌번호가 복사되었습니다!\n예약 문자와 전화 단계를 진행해 주세요.");
+            saveToIndexedDB("입금요청/문자접수");
+            sendSms();   // 문자/전화 단계 UI로 전환
+        }).catch(() => {
+            alert("계좌 복사에 실패했습니다.\n그래도 예약 문자와 전화 단계는 진행할 수 있습니다.");
+            saveToIndexedDB("입금요청/문자접수");
+            sendSms();
+        });
+    } else {
+        alert("이 브라우저에서는 자동 복사가 지원되지 않습니다.\n직접 계좌번호를 확인해 주세요.");
+        saveToIndexedDB("입금요청/문자접수");
         sendSms();
-        closeModal();
     }
 }
 
-// 모달 창 닫기
-function closeModal() {
-    document.getElementById('modal').style.display = 'none';
+function handleLaterPay() {
+    if (confirm("현장 결제로 예약 문자를 발송하시겠습니까?\n(문자 발송 후 매장 전화 연결을 진행하실 수 있습니다.)")) {
+        saveToIndexedDB("현장결제요청");
+        sendSms();   // 문자/전화 단계 UI로 전환
+    }
 }
 
-// 모달 바깥 클릭 시 닫기
+// =======================
+// 8. 모달 닫기 및 바깥 클릭 처리
+// =======================
+function closeModal() {
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 window.onclick = function(event) {
     const modal = document.getElementById('modal');
-    if (event.target == modal) {
+    if (event.target === modal) {
         closeModal();
     }
-}
+};          
