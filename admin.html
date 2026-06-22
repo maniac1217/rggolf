@@ -28,7 +28,11 @@
         .form-grid input, .form-grid select { width: 100%; }
         .btn-insert { background: #2b6cb0; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
 
-        .counter { font-weight: bold; color: #2980b9; margin: 10px 0; font-size: 1rem; text-align: right;}
+        /* [수정] 건수 및 인원 합계 대시보드 스타일 고도화 */
+        .counter-box { display: flex; justify-content: space-between; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 10px 0; font-size: 0.95rem; border: 1px dashed #cbd5e0; }
+        .counter-item { font-weight: bold; color: #2d3748; }
+        .counter-item span { color: #e53e3e; font-size: 1.05rem; }
+        .counter-item .total-people { color: #2b6cb0; font-size: 1.05rem; }
         
         .card-list { display: flex; flex-direction: column; gap: 12px; }
         .card { background: #fff; border: 1px solid #e1e8ed; padding: 15px; border-radius: 10px; }
@@ -48,7 +52,6 @@
 <body>
 
 <div class="admin-wrap">
-    <!-- 암호 인증 단락 -->
     <div id="loginBox">
         <h2>관리자 비밀번호 입력</h2>
         <input type="password" id="adminPassword" placeholder="암호 4자리 입력" maxlength="4">
@@ -56,18 +59,16 @@
         <button onclick="checkPassword()">로그인</button>
     </div>
 
-    <!-- 대시보드 메인 제어 단락 -->
     <div id="mainDashboard">
         <h1>알지골프 예약 정보 관리</h1>
         
-        <!-- [신규] 누락 자료 수동 입력 폼 -->
         <div class="insert-box">
             <h3>➕ 누락 예약 자료 수동 입력</h3>
             <div class="form-grid">
                 <input type="text" id="insName" placeholder="예약자명">
                 <input type="tel" id="insPhone" placeholder="연락처 (숫자만)">
                 <input type="text" id="insTime" placeholder="예약시간 (예: 14:30)">
-                <input type="text" id="insCount" placeholder="인원수 (예: 4명)">
+                <input type="text" id="insCount" placeholder="인원수 (예: 4)">
                 <select id="insStatus">
                     <option value="대기중">대기중</option>
                     <option value="예약확정">예약확정</option>
@@ -89,11 +90,13 @@
             <button onclick="fetchData()" class="btn-search">기간 설정 조회</button>
         </div>
 
-        <div class="counter" id="totalCount">조회 내역: 총 0건</div>
+        <div class="counter-box">
+            <div class="counter-item">조회 건수: <span id="totalCount">0</span>건</div>
+            <div class="counter-item">총 인원 합계: <span id="totalPeople" class="total-people">0</span>명</div>
+        </div>
 
         <div class="card-list" id="dataList">
-            <!-- 데이터 렌더링 스페이스 -->
-        </div>
+            </div>
         
         <a href="index.html" class="btn-back">⬅ 메인 예약화면으로 돌아가기</a>
     </div>
@@ -101,7 +104,6 @@
 
 <script>
     let db;
-    // 입금 안내 문자 메시지 설정 (필요 시 계좌번호 수정 가능)
     const BANK_ACCOUNT = "카카오뱅크 7942-25-80482 (예금주: 한용섭)";
 
     // 1. 비밀번호 체크 체계
@@ -126,7 +128,7 @@
 
         document.getElementById('endDate').valueAsDate = today;
         document.getElementById('startDate').valueAsDate = oneMonthAgo;
-        document.getElementById('insDate').valueAsDate = today; // 수동입력 날짜도 기본 오늘로 세팅
+        document.getElementById('insDate').valueAsDate = today; 
     }
 
     // 3. 데이터베이스 커넥션 구축 후 조회 연동
@@ -138,12 +140,12 @@
         };
     }
 
-    // [신규 기능] 누락 자료 데이터베이스 수동 추가 함수
+    // 누락 자료 데이터베이스 수동 추가 함수
     function insertReservation() {
         const name = document.getElementById('insName').value.trim();
         const phone = document.getElementById('insPhone').value.trim();
         const time = document.getElementById('insTime').value.trim();
-        const count = document.getElementById('insCount').value.trim();
+        let count = document.getElementById('insCount').value.trim();
         const status = document.getElementById('insStatus').value;
         const dateVal = document.getElementById('insDate').value;
 
@@ -152,11 +154,16 @@
             return;
         }
 
+        // 입력받은 인원수에 '명' 텍스트가 안 붙어있다면 붙여서 포맷 통일구축
+        if(!count.includes('명')) {
+            count = count + "명";
+        }
+
         const transaction = db.transaction(["reservations"], "readwrite");
         const store = transaction.objectStore("reservations");
 
         const newRecord = {
-            id: Date.now(), // 고유 ID값 타임스탬프로 생성
+            id: Date.now(), 
             name: name,
             phone: phone,
             time: `${dateVal} ${time}`,
@@ -168,12 +175,11 @@
         const addRequest = store.add(newRecord);
         addRequest.onsuccess = function() {
             alert(`[${name}]님의 예약 자료를 데이터베이스에 수동 추가했습니다.`);
-            // 입력 폼 초기화
             document.getElementById('insName').value = "";
             document.getElementById('insPhone').value = "";
             document.getElementById('insTime').value = "";
             document.getElementById('insCount').value = "";
-            fetchData(); // 리스트 갱신
+            fetchData(); 
         };
     }
 
@@ -206,11 +212,26 @@
         };
     }
 
-    // 5. 조회된 내용 브라우저 카드형 리스트 렌더링
+    // 5. 조회된 내용 브라우저 카드형 리스트 렌더링 및 인원수 합계 연산 처리
     function renderList(data) {
         const container = document.getElementById('dataList');
         container.innerHTML = "";
-        document.getElementById('totalCount').innerText = `조회 내역: 총 ${data.length}건`;
+        
+        // 1. 기본 건수 대입
+        document.getElementById('totalCount').innerText = data.length;
+
+        // [핵심 기능] 2. 루프 돌려 인원수 데이터에서 숫자만 추출해 총 합계 계산
+        let totalPeopleSum = 0;
+        data.forEach(item => {
+            if(item.count) {
+                // 수동 및 기본데이터 포함하여 정규식을 통해 순수 숫자만 골라 추려냄
+                const num = parseInt(item.count.toString().replace(/[^0-9]/g, ""), 10);
+                if(!isNaN(num)) {
+                    totalPeopleSum += num;
+                }
+            }
+        });
+        document.getElementById('totalPeople').innerText = totalPeopleSum;
 
         if(data.length === 0) {
             container.innerHTML = "<p style='text-align:center;color:#95a5a6;padding:30px;'>선택하신 기간 내 예약 내역이 없습니다.</p>";
@@ -241,30 +262,25 @@
         });
     }
 
-    // [신규 기능] 미입금 안내 문자 전송 및 클립보드 복사 함수
+    // 미입금 안내 문자 전송 및 클립보드 복사 함수
     function sendUnpaidSms(name, phone) {
         const message = `[알지골프] 안녕하세요 ${name}님, 예약 건에 대해 입금이 확인 안 되니 확인해 주시기 바랍니다. \n■ 입금계좌: ${BANK_ACCOUNT}`;
-        
-        // 1. 모바일 환경에서 문자앱 연동 기동 (sms:연락처?body=내용)
         const encodedMsg = encodeURIComponent(message);
         let smsUrl = `sms:${phone}?body=${encodedMsg}`;
         
-        // 아이폰/iOS 환경 대응 특수문자 처리 변경 적용
         if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
             smsUrl = `sms:${phone}&body=${encodedMsg}`;
         }
 
-        // 2. 만약 PC 등에서 실행할 경우를 대비하여 클립보드 자동 복사 백업
         navigator.clipboard.writeText(message).then(() => {
-            alert("미입금 안내 문자가 클립보드에 자동 복사되었습니다!\n문자창이 열리면 붙여넣기(Ctrl+V) 하실 수 있습니다.");
-            window.location.href = smsUrl; // 문자 앱 실행
+            alert("미입금 안내 문자가 클립보드에 자동 복사되었습니다!\n문자창이 열리면 붙여넣기 하실 수 있습니다.");
+            window.location.href = smsUrl; 
         }).catch(err => {
-            // 구형 브라우저 우회 처리
             window.location.href = smsUrl;
         });
     }
 
-    // 6. [IndexedDB 데이터 수정 기능] 인원수 및 상태 값 갱신
+    // 6. [IndexedDB 데이터 수정 기능] 인원수 및 상태 값 갱신 후 합계 리프레시
     function updateReservation(id) {
         const transaction = db.transaction(["reservations"], "readwrite");
         const store = transaction.objectStore("reservations");
@@ -273,8 +289,11 @@
         getRequest.onsuccess = function() {
             const data = getRequest.result;
             
-            const newCount = prompt("변경할 예약 인원수를 입력하세요 (예: 3명):", data.count);
+            let newCount = prompt("변경할 예약 인원수를 입력하세요 (예: 3명 또는 3):", data.count);
             if (newCount === null) return; 
+            if (newCount.trim() !== "" && !newCount.includes('명')) {
+                newCount = newCount.trim() + "명";
+            }
             
             const newStatus = prompt("변경할 접수 상태를 입력하세요 (예: 예약확정, 미입금, 취소건):", data.status);
             if (newStatus === null) return;
@@ -285,7 +304,7 @@
             const updateRequest = store.put(data);
             updateRequest.onsuccess = function() {
                 alert("예약 정보가 정상적으로 수정되었습니다.");
-                fetchData(); 
+                fetchData(); // 수정 완료 후 데이터 리스트 재호출하여 합계 자동 갱신
             };
         };
     }
@@ -299,7 +318,7 @@
 
             deleteRequest.onsuccess = function() {
                 alert("해당 예약 데이터가 데이터베이스에서 정상 삭제되었습니다.");
-                fetchData(); 
+                fetchData(); // 삭제 완료 후 목록 및 합계 자동 갱신
             };
         }
     }
