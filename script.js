@@ -10,8 +10,7 @@ const NOTION_API_KEY = "ntn_abc123def456ghi789jkl012mno345pqrdl";
 // ⚠️ 중요: 본인의 RGDB 데이터베이스 ID 32자리를 아래에 입력해주세요.
 const NOTION_DATABASE_ID = "38bb4950c35780e7a2fdf94cd9caf87d"; 
 // 브라우저 CORS 에러 우회를 위한 프록시 서버 URL (테스트용)
-const CORS_PROXY = "https://cors-anywhere.herokuapp.com/"; 
-
+const CORS_PROXY = "https://thingproxy.freeboard.io/fetch/";
 // =======================
 // 1. 예약 일시 기본값 세팅
 // =======================
