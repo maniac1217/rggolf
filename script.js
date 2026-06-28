@@ -86,59 +86,59 @@ function getSmsUrl() {
 }
 
 // =======================
-// NEW: Notion API 연동 함수
+// 수정된 Notion API 연동 함수
 // =======================
 async function sendToNotion(reservationData) {
-    // 노션 API 엔드포인트에 CORS 프록시 주소를 결합합니다.
-    const notionUrl = CORS_PROXY + "https://api.notion.com/v1/pages";
-
-    // 노션 DB 속성(Properties) 형식에 맞게 데이터를 구성합니다.
-    // ⚠️ 노션 DB의 컬럼명(성함, 연락처, 인원, 예약시간, 결제상태)이 일치해야 합니다.
+    // 1. 노션 DB 속성(Properties) 데이터 구성
     const payload = {
         parent: { database_id: NOTION_DATABASE_ID },
         properties: {
-            "성함": {
-                title: [{ text: { content: reservationData.name } }]
-            },
-            "연락처": {
-                rich_text: [{ text: { content: reservationData.phone } }]
-            },
-            "인원": {
-                rich_text: [{ text: { content: reservationData.count } }]
-            },
-            "예약시간": {
-                rich_text: [{ text: { content: reservationData.time } }]
-            },
-            "결제상태": {
-                select: { name: reservationData.status } // 로컬의 status를 노션의 Select(선택) 속성으로 저장
-            }
+            "성함": { title: [{ text: { content: reservationData.name } }] },
+            "연락처": { rich_text: [{ text: { content: reservationData.phone } }] },
+            "인원": { rich_text: [{ text: { content: reservationData.count } }] },
+            "예약시간": { rich_text: [{ text: { content: reservationData.time } }] },
+            "결제상태": { select: { name: reservationData.status } }
         }
     };
 
+    // 2. 가장 안정적인 allorigins 프록시 주소 설정
+    // 노션 API 호출 주소와 헤더, 바디를 하나의 주소 안에 안전하게 포장하여 보냅니다.
+    const targetUrl = "https://api.notion.com/v1/pages";
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
     try {
         console.log("노션 데이터 전송 시작...");
-        const response = await fetch(notionUrl, {
+        
+        // 프록시 서버가 요구하는 방식으로 fetch 요청을 보냅니다.
+        const response = await fetch(proxyUrl, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${NOTION_API_KEY}`,
-                "Notion-Version": "2022-06-28",
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
+                "Content-Type": "application/json"
             },
-            body: JSON.stringify(payload)
+            // allorigins 프록시는 원래 보낼 요청의 정보(headers, method, body)를 
+            // 하나의 데이터 객체로 묶어서 보내야 정상 작동합니다.
+            body: JSON.stringify({
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${NOTION_API_KEY}`,
+                    "Notion-Version": "2022-06-28",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            })
         });
 
         if (response.ok) {
-            console.log("Notion DB 연동 성공!");
+            const result = await response.json();
+            // 프록시 서버로부터 받은 진짜 노션의 응답 확인
+            console.log("Notion DB 연동 성공!", result);
         } else {
-            const errData = await response.json();
-            console.error("Notion API 에러 응답:", errData);
+            console.error("프록시 서버 응답 실패");
         }
     } catch (error) {
         console.error("Notion 전송 중 네트워크 오류 발생:", error);
     }
 }
-
 // =======================
 // 4. IndexedDB 저장 + Notion 동기화 호출
 // =======================
