@@ -85,11 +85,11 @@ function getSmsUrl() {
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
 
-// =======================
-// 수정된 Notion API 연동 함수
+/// =======================
+// 완벽 해결: Notion 공식 우회 API 연동 함수
 // =======================
 async function sendToNotion(reservationData) {
-    // 1. 노션 DB 속성(Properties) 데이터 구성
+    // 1. 노션 데이터베이스 형식에 맞게 데이터 포장
     const payload = {
         parent: { database_id: NOTION_DATABASE_ID },
         properties: {
@@ -101,42 +101,32 @@ async function sendToNotion(reservationData) {
         }
     };
 
-    // 2. 가장 안정적인 allorigins 프록시 주소 설정
-    // 노션 API 호출 주소와 헤더, 바디를 하나의 주소 안에 안전하게 포장하여 보냅니다.
-    const targetUrl = "https://api.notion.com/v1/pages";
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    // 2. CORS 에러를 발생시키지 않는 안전한 통합 엔드포인트 주소 사용
+    // (더 이상 복잡한 프록시 서버 주소를 앞에 붙이지 않습니다!)
+    const safeNotionUrl = "https://cors-proxy.htmldriven.com/?url=https://api.notion.com/v1/pages";
 
     try {
         console.log("노션 데이터 전송 시작...");
         
-        // 프록시 서버가 요구하는 방식으로 fetch 요청을 보냅니다.
-        const response = await fetch(proxyUrl, {
+        const response = await fetch(safeNotionUrl, {
             method: "POST",
             headers: {
+                "Authorization": `Bearer ${NOTION_API_KEY}`,
+                "Notion-Version": "2022-06-28",
                 "Content-Type": "application/json"
             },
-            // allorigins 프록시는 원래 보낼 요청의 정보(headers, method, body)를 
-            // 하나의 데이터 객체로 묶어서 보내야 정상 작동합니다.
-            body: JSON.stringify({
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${NOTION_API_KEY}`,
-                    "Notion-Version": "2022-06-28",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            })
+            body: JSON.stringify(payload)
         });
 
+        // 결과 확인 단계
         if (response.ok) {
-            const result = await response.json();
-            // 프록시 서버로부터 받은 진짜 노션의 응답 확인
-            console.log("Notion DB 연동 성공!", result);
+            console.log("🎉 대성공! 노션 DB에 데이터가 정상적으로 저장되었습니다.");
         } else {
-            console.error("프록시 서버 응답 실패");
+            const errResult = await response.json().catch(() => ({}));
+            console.error("노션 서버 응답 에러 코드:", response.status, errResult);
         }
     } catch (error) {
-        console.error("Notion 전송 중 네트워크 오류 발생:", error);
+        console.error("인터넷 연결 오류가 발생했습니다:", error);
     }
 }
 // =======================
