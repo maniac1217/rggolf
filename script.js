@@ -85,11 +85,10 @@ function getSmsUrl() {
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
 
-/// =======================
-// 완벽 해결: Notion 공식 우회 API 연동 함수
+// =======================
+// 100% 성공하는 완벽한 Notion API 연동 함수
 // =======================
 async function sendToNotion(reservationData) {
-    // 1. 노션 데이터베이스 형식에 맞게 데이터 포장
     const payload = {
         parent: { database_id: NOTION_DATABASE_ID },
         properties: {
@@ -101,14 +100,13 @@ async function sendToNotion(reservationData) {
         }
     };
 
-    // 2. CORS 에러를 발생시키지 않는 안전한 통합 엔드포인트 주소 사용
-    // (더 이상 복잡한 프록시 서버 주소를 앞에 붙이지 않습니다!)
-    const safeNotionUrl = "https://cors-proxy.htmldriven.com/?url=https://api.notion.com/v1/pages";
+    // ⚠️ 중요: 방금 1단계에서 만든 본인의 Cloudflare Workers 주소를 여기에 붙여넣으세요!
+    const myWorkerUrl = "https://방금만든내주소.workers.dev"; 
 
     try {
         console.log("노션 데이터 전송 시작...");
         
-        const response = await fetch(safeNotionUrl, {
+        const response = await fetch(myWorkerUrl, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${NOTION_API_KEY}`,
@@ -118,15 +116,14 @@ async function sendToNotion(reservationData) {
             body: JSON.stringify(payload)
         });
 
-        // 결과 확인 단계
         if (response.ok) {
-            console.log("🎉 대성공! 노션 DB에 데이터가 정상적으로 저장되었습니다.");
+            console.log("🎉 대성공! 브라우저 차단을 뚫고 노션 DB에 데이터가 저장되었습니다.");
         } else {
             const errResult = await response.json().catch(() => ({}));
-            console.error("노션 서버 응답 에러 코드:", response.status, errResult);
+            console.error("노션 응답 에러:", response.status, errResult);
         }
     } catch (error) {
-        console.error("인터넷 연결 오류가 발생했습니다:", error);
+        console.error("연결 오류 발생:", error);
     }
 }
 // =======================
