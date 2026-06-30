@@ -6,7 +6,7 @@ const CALL_PHONE  = "0538178800";    // 매장 전화번호
 let db = null;
 
 // [노션 연동 설정]
-const NOTION_API_KEY = "ntn_abc123def456ghi789jkl012mno345pqrdl";
+const NOTION_API_KEY = "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";
 // ⚠️ 중요: 본인의 RGDB 데이터베이스 ID 32자리를 아래에 입력해주세요.
 const NOTION_DATABASE_ID = "38bb4950c35780e7a2fdf94cd9caf87d"; 
 // 브라우저 CORS 에러 우회를 위한 프록시 서버 URL (테스트용)
