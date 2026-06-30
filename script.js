@@ -1,20 +1,37 @@
-// =======================
-// 기본 상수 / 전역 변수
-// =======================
+// =======================================================
+// 1. 구글 파이어베이스 실시간 데이터베이스 엔진 로드
+// =======================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+// =======================================================
+// 2. 구글 파이어베이스 설정값 세팅 완료
+// =======================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
+    authDomain: "rg-golf.firebaseapp.com",
+    databaseURL: "https://rg-golf-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "rg-golf",
+    storageBucket: "rg-golf.firebasestorage.app",
+    messagingSenderId: "382686211001",
+    appId: "1:382686211001:web:9c0dfba9c93b7966c9a468",
+    measurementId: "G-WT14V4N0EX"
+};
+
+// 구글 데이터베이스 초기화 및 연결
+const app = initializeApp(firebaseConfig);
+const firebaseDb = getDatabase(app);
+
+// =======================================================
+// 기본 상수 / 전역 변수 (기존 값 유지)
+// =======================================================
 const ADMIN_PHONE = "01099901806";   // 문자 수신 번호
 const CALL_PHONE  = "0538178800";    // 매장 전화번호
-let db = null;
+let localDb = null;
 
-// [노션 연동 설정]
-const NOTION_API_KEY = "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";
-// ⚠️ 중요: 본인의 RGDB 데이터베이스 ID 32자리를 아래에 입력해주세요.
-const NOTION_DATABASE_ID = "38bb4950c357800eb408e4b4c6ee96f9"; 
-// 브라우저 CORS 에러 우회를 위한 프록시 서버 URL (테스트용)
-// const CORS_PROXY = "https://damp-truth-0bc8.maniac1217.workers.dev/";
-const MY_WORKER_URL = "https://hook.eu1.make.com/ubacqhwvsv9szj8prbu1w1aiqjp99rvr";
-// =======================
-// 1. 예약 일시 기본값 세팅
-// =======================
+// =======================================================
+// 3. 예약 일시 기본값 세팅
+// =======================================================
 window.addEventListener('DOMContentLoaded', () => {
     const dtInput = document.getElementById('bookingTime');
     if (dtInput) {
@@ -26,34 +43,34 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// =======================
-// 2. IndexedDB 초기화
-// =======================
+// =======================================================
+// 4. 로컬 IndexedDB 초기화
+// =======================================================
 try {
     const request = indexedDB.open("RG_Golf_DB", 1);
 
     request.onupgradeneeded = function (event) {
-        db = event.target.result;
-        if (!db.objectStoreNames.contains("reservations")) {
-            db.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
+        localDb = event.target.result;
+        if (!localDb.objectStoreNames.contains("reservations")) {
+            localDb.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
         }
     };
 
     request.onsuccess = function (event) {
-        db = event.target.result;
-        console.log("Database 연결 성공");
+        localDb = event.target.result;
+        console.log("로컬 Database 연결 성공");
     };
 
     request.onerror = function (event) {
-        console.error("Database 에러: ", event.target.errorCode);
+        console.error("로컬 Database 에러: ", event.target.errorCode);
     };
 } catch (e) {
     console.error("IndexedDB를 지원하지 않거나 환경적 제약이 있습니다.", e);
 }
 
-// =======================
-// 3. 공통 유틸: 모바일 OS 판별 / SMS URL 생성
-// =======================
+// =======================================================
+// 5. 공통 유틸: 모바일 OS 판별 / SMS URL 생성
+// =======================================================
 function getMobileOS() {
     const ua = navigator.userAgent.toLowerCase();
     if (ua.indexOf('android') > -1) return 'android';
@@ -64,7 +81,7 @@ function getMobileOS() {
 function getSmsUrl() {
     const name  = document.getElementById('userName').value.trim();
     const phone = document.getElementById('userPhone').value.trim();
-    const count = document.getElementById('userCount').value.trim();
+    const count = document.getElementById('userCount')?.value.trim() || document.getElementById('peopleCount')?.value.trim() || "1";
     const time  = document.getElementById('bookingTime').value;
 
     const formattedTime = time ? time.replace('T', ' ') : '';
@@ -86,56 +103,15 @@ function getSmsUrl() {
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
 
-// =======================
-// 100% 성공하는 완벽한 Notion API 연동 함수
-// =======================
-async function sendToNotion(reservationData) {
-    const payload = {
-        parent: { database_id: NOTION_DATABASE_ID },
-        properties: {
-            "성함": { title: [{ text: { content: reservationData.name } }] },
-            "연락처": { rich_text: [{ text: { content: reservationData.phone } }] },
-            "인원": { rich_text: [{ text: { content: reservationData.count } }] },
-            "예약시간": { rich_text: [{ text: { content: reservationData.time } }] },
-            "결제상태": { select: { name: reservationData.status } }
-        }
-    };
-
-    // ⚠️ 중요: 방금 1단계에서 만든 본인의 Cloudflare Workers 주소를 여기에 붙여넣으세요!
-    //const NOTION_API_KEY = "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";
-    //const myWorkerUrl = "https://damp-truth-0bc8.maniac1217.workers.dev/"; 
-      const MY_WORKER_URL = "https://hook.eu1.make.com/ubacqhwvsv9szj8prbu1w1aiqjp99rvr";
-    try {
-        console.log("노션 데이터 전송 시작...");
-        
-        const response = await fetch(MY_WORKER_URL, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${NOTION_API_KEY}`,
-                "Notion-Version": "2022-06-28",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            console.log("🎉 대성공! 브라우저 차단을 뚫고 노션 DB에 데이터가 저장되었습니다.");
-        } else {
-            const errResult = await response.json().catch(() => ({}));
-            console.error("노션 응답 에러:", response.status, errResult);
-        }
-    } catch (error) {
-        console.error("연결 오류 발생:", error);
-    }
-}
-// =======================
-// 4. IndexedDB 저장 + Notion 동기화 호출
-// =======================
-function saveToIndexedDB(status) {
+// =======================================================
+// 6. 구글 파이어베이스 전송 및 로컬 DB 백업 통합 제어 함수
+// =======================================================
+async function saveAndSyncReservation(status) {
     try {
         const name  = document.getElementById('userName').value.trim();
         const phone = document.getElementById('userPhone').value.trim();
-        const count = parseInt(document.getElementById('userCount').value, 10);
+        const countRaw = document.getElementById('userCount')?.value || document.getElementById('peopleCount')?.value || "1";
+        const count = parseInt(countRaw, 10);
         const timeRaw = document.getElementById('bookingTime').value || '';
         const time = timeRaw ? timeRaw.replace('T', ' ') : '';
 
@@ -145,36 +121,39 @@ function saveToIndexedDB(status) {
             count: count + "명",
             time: time,
             status: status,
-            createdAt: time.split(' ')[0] || ''
+            createdAt: new Date().toISOString()
         };
 
-        // 1. IndexedDB에 로컬 저장
-        if (db) {
-            const transaction = db.transaction(["reservations"], "readwrite");
+        // 1단계: 컴퓨터 저장소(IndexedDB) 백업
+        if (localDb) {
+            const transaction = localDb.transaction(["reservations"], "readwrite");
             const store = transaction.objectStore("reservations");
             store.add(newReservation);
-            console.log("로컬 IndexedDB 저장 완료");
-        } else {
-            console.warn("DB가 초기화되지 않아 로컬 저장을 건너뜁니다.");
+            console.log("로컬 IndexedDB 백업 저장 완료");
         }
 
-        // 2. 외부 Notion DB로 데이터 전송 트리거 추가
-        sendToNotion(newReservation);
+        // 2단계: 구글 초고속 파이어베이스 실시간 데이터베이스 서버로 직통 전송
+        console.log("구글 Realtime DB 전송 시작...");
+        const reservationsRef = ref(firebaseDb, 'reservations');
+        const newReservationRef = push(reservationsRef);
+        
+        await set(newReservationRef, newReservation);
+        console.log("🎉 구글 파이어베이스 서버에 데이터 저장 성공 완료!");
 
     } catch (error) {
-        console.error("데이터 저장 중 오류 발생: ", error);
+        console.error("데이터 구글 전송 또는 저장 중 에러 발생: ", error);
     }
 }
 
-// =======================
-// 5. 예약 신청 메인 제어
-// =======================
-function handleBooking() {
+// =======================================================
+// 7. 예약 신청 메인 제어 (화면 유효성 검사 및 모달 활성화)
+// =======================================================
+window.handleBooking = function() {
     console.log("handleBooking() 함수 시작됨");
 
     const name  = document.getElementById('userName').value.trim();
     const phone = document.getElementById('userPhone').value.trim();
-    const count = document.getElementById('userCount').value;
+    const count = document.getElementById('userCount')?.value || document.getElementById('peopleCount')?.value;
     const time  = document.getElementById('bookingTime').value;
 
     if (!name || !phone || !count || !time) {
@@ -183,6 +162,7 @@ function handleBooking() {
     }
     if (parseInt(count, 10) < 1) {
         alert("최소 1명 이상 입력하셔야 합니다.");
+        return;
     }
 
     const modal = document.getElementById('modal');
@@ -192,12 +172,12 @@ function handleBooking() {
     } else {
         alert("화면에 모달 레이아웃(id='modal')을 찾을 수 없습니다.");
     }
-}
+};
 
-// =======================
-// 6. 모달 내부: 문자/전화 단계 UI 구성
-// =======================
-function sendSms() {
+// =======================================================
+// 8. 모달 내부 UI 구성 및 문자/전화 기능 제어
+// =======================================================
+window.sendSms = function() {
     const modalBody = document.querySelector('.modal-body');
     if (!modalBody) return;
 
@@ -207,28 +187,28 @@ function sendSms() {
             2단계: 문자 발송 후, 다시 이 화면으로 돌아와 전화 버튼을 눌러주세요.
         </p>
         <div class="button-group">
-            <button onclick="triggerActualSms()" class="btn-action copy" style="font-size:18px; padding:12px 0;">
+            <button onclick="triggerActualSms()" class="btn-action copy" style="font-size:18px; padding:12px 0; width:100%;">
                 💬 1단계: 예약 문자 발송
             </button>
-            <button onclick="callToCenter()" class="btn-action later" style="font-size:18px; padding:12px 0; margin-top:8px;">
+            <button onclick="callToCenter()" class="btn-action later" style="font-size:18px; padding:12px 0; margin-top:8px; width:100%;">
                 📞 2단계: 매장으로 전화하기
             </button>
-            <button onclick="closeModal()" class="btn-action close" style="margin-top:10px;">창 닫기</button>
+            <button onclick="closeModal()" class="btn-action close" style="margin-top:10px; width:100%;">창 닫기</button>
         </div>
     `;
 
     const modal = document.getElementById('modal');
     if (modal) modal.style.display = 'flex';
-}
+};
 
-function triggerActualSms() {
+window.triggerActualSms = function() {
     const url = getSmsUrl();
     if (url) {
         window.location.href = url;
     }
-}
+};
 
-function callToCenter() {
+window.callToCenter = function() {
     const telLink = document.getElementById('hiddenTelLink');
     if (telLink) {
         telLink.href = `tel:${CALL_PHONE}`;
@@ -236,47 +216,47 @@ function callToCenter() {
     } else {
         window.location.href = `tel:${CALL_PHONE}`;
     }
-}
+};
 
-// =======================
-// 7. 계좌 복사 / 현장결제 버튼 로직
-// =======================
-function copyAccount() {
+// =======================================================
+// 9. 계좌 복사 / 현장결제 버튼 최종 연동
+// =======================================================
+window.copyAccount = function() {
     const account = "79422580482"; 
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(account).then(() => {
             alert("카카오뱅크 계좌번호가 복사되었습니다!\n예약 문자와 전화 단계를 진행해 주세요.");
-            saveToIndexedDB("입금요청/문자접수");
+            saveAndSyncReservation("입금요청/문자접수");
             sendSms();
         }).catch(() => {
             alert("계좌 복사에 실패했습니다.\n그래도 예약 문자와 전화 단계는 진행할 수 있습니다.");
-            saveToIndexedDB("입금요청/문자접수");
+            saveAndSyncReservation("입금요청/문자접수");
             sendSms();
         });
     } else {
         alert("이 브라우저에서는 자동 복사가 지원되지 않습니다.\n직접 계좌번호를 확인해 주세요.");
-        saveToIndexedDB("입금요청/문자접수");
+        saveAndSyncReservation("입금요청/문자접수");
         sendSms();
     }
-}
+};
 
-function handleLaterPay() {
+window.handleLaterPay = function() {
     if (confirm("현장 결제로 예약 문자를 발송하시겠습니까?\n(문자 발송 후 매장 전화 연결을 진행하실 수 있습니다.)")) {
-        saveToIndexedDB("현장결제요청");
+        saveAndSyncReservation("현장결제요청");
         sendSms();
     }
-}
+};
 
-// =======================
-// 8. 모달 닫기 및 바깥 클릭 처리
-// =======================
-function closeModal() {
+// =======================================================
+// 10. 모달 닫기 및 외부 영역 클릭 제어
+// =======================================================
+window.closeModal = function() {
     const modal = document.getElementById('modal');
     if (modal) {
         modal.style.display = 'none';
     }
-}
+};
 
 window.onclick = function(event) {
     const modal = document.getElementById('modal');
