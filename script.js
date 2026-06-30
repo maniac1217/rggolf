@@ -108,7 +108,7 @@ async function sendToNotion(reservationData) {
     try {
         console.log("노션 데이터 전송 시작...");
         
-        const response = await fetch(myWorkerUrl, {
+        const response = await fetch(MY_WORKER_URL, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${NOTION_API_KEY}`,
