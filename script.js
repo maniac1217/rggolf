@@ -8,7 +8,7 @@ let db = null;
 // [노션 연동 설정]
 const NOTION_API_KEY = "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";
 // ⚠️ 중요: 본인의 RGDB 데이터베이스 ID 32자리를 아래에 입력해주세요.
-const NOTION_DATABASE_ID = "38bb4950c3578026b626000c1bc9ffb1"; 
+const NOTION_DATABASE_ID = "38bb4950c357800eb408e4b4c6ee96f9"; 
 // 브라우저 CORS 에러 우회를 위한 프록시 서버 URL (테스트용)
 const CORS_PROXY = "https://damp-truth-0bc8.maniac1217.workers.dev/";
 // =======================
