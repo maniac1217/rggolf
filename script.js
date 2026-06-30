@@ -102,9 +102,9 @@ async function sendToNotion(reservationData) {
     };
 
     // ⚠️ 중요: 방금 1단계에서 만든 본인의 Cloudflare Workers 주소를 여기에 붙여넣으세요!
-    const NOTION_API_KEY = "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";
+    //const NOTION_API_KEY = "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";
     //const myWorkerUrl = "https://damp-truth-0bc8.maniac1217.workers.dev/"; 
-
+      const MY_WORKER_URL = "https://hook.eu1.make.com/ubacqhwvsv9szj8prbu1w1aiqjp99rvr";
     try {
         console.log("노션 데이터 전송 시작...");
         
