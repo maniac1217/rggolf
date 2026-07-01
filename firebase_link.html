@@ -60,7 +60,7 @@
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
             // 혹시 몰라 비어있을 경우 창고를 안전하게 생성하는 코드 유지
-            if (!database.objectStoreNames.contains("local_source")) {
+            if (!database.objectStoreNames.contains("reservations")) {
                 database.createObjectStore("local_source", { keyPath: "name" });
             }
             if (!database.objectStoreNames.contains("notion_sent")) {
