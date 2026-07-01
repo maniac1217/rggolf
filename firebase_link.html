@@ -2,33 +2,34 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Firebase 🔥 Notion 실시간 연동기</title>
+    <title>Firebase 🔥 Notion 동시 연동기</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
         #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; margin-bottom: 10px; }
-        #btn-sync { padding: 12px 24px; font-size: 16px; font-weight: bold; background-color: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-        #btn-sync:hover { background-color: #45a049; }
+        #btn-sync { padding: 12px 24px; font-size: 16px; font-weight: bold; background-color: #ff5722; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        #btn-sync:hover { background-color: #e64a19; }
         #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ccc; }
-        .success { color: green; }
+        .success { color: green; font-weight: bold; }
+        .fb-success { color: #0288d1; }
         .info { color: #555; }
         .warn { color: #f44336; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2>🔥 Firebase ➡️ Notion 실시간 전송 대시보드</h2>
-    <div id="status">상태: 데이터베이스 및 Firebase 연결 준비 중...</div>
+    <h2>🔥 대시보드: 중복 검사 후 Firebase & Notion 동시 전송</h2>
+    <div id="status">상태: 데이터베이스 연결 준비 중...</div>
     
-    <button id="btn-sync">🔄 중복 검사 후 노션에 연동하기</button>
+    <button id="btn-sync">🔄 신규 자료 Firebase & 노션 동시 반영하기</button>
 
-    <h3>배달 기록창</h3>
-    <div id="log">아직 들어온 데이터가 없습니다.</div>
+    <h3>배달 작업 기록창</h3>
+    <div id="log">아직 진행된 작업이 없습니다.</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==================== [초등학생 주목! 여기만 바꿔주세요] ====================
+        // ==================== [초등학생 주목! 여기만 확인하세요] ====================
         const firebaseConfig = {
             apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
             authDomain: "rg-golf.firebaseapp.com",
@@ -42,9 +43,9 @@
 
         const COLLECTION_NAME = "rg-golf"; 
         
-        // 2. 노션 정보 입력하기 (※ 본인의 비밀 토큰을 여기에 꼭 적어주세요!)
+        // 노션 정보 (※ 본인의 비밀 토큰을 여기에 꼭 적어주세요!)
         const NOTION_TOKEN = "secret_이곳에_노션_토큰을_넣으세요";
-        const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; // 아까 찾은 진짜 ID로 수정 완료!
+        const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
         // =========================================================================
 
         // Firebase 켜기
@@ -54,18 +55,15 @@
         const logDiv = document.getElementById("log");
         const syncBtn = document.getElementById("btn-sync");
 
-        // 최신 수집된 Firebase 임시 보관 구역
-        let currentFirebaseData = [];
-
         // -------------------------------------------------------------
-        // 💾 1. IndexedDB (컴퓨터 내부 저장소) 열기 설정
+        // 💾 1. IndexedDB (내 컴퓨터 보관함) 열기
         // -------------------------------------------------------------
         let idb = null;
         const dbRequest = indexedDB.open("GolfDataBackupDB", 1);
 
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
-            // 'name'을 열쇠(Key)로 사용하는 보관창고를 만듭니다
+            // 'name'을 열쇠로 쓰고, 노션과 파이어베이스에 이미 보낸 대상을 기억할 창고
             if (!database.objectStoreNames.contains("notion_sent")) {
                 database.createObjectStore("notion_sent", { keyPath: "name" });
             }
@@ -73,15 +71,14 @@
 
         dbRequest.onsuccess = function(e) {
             idb = e.target.result;
-            statusDiv.innerText = "상태: 👀 IndexedDB 연결 완료! Firebase 감시 시작...";
-            startFirebaseListening();
+            statusDiv.innerText = "상태: 🟢 준비 완료! 버튼을 누르면 중복 검사를 시작합니다.";
         };
 
         dbRequest.onerror = function() {
-            statusDiv.innerText = "상태: ❌ IndexedDB 연결 실패!";
+            statusDiv.innerText = "상태: ❌ 내 컴퓨터 보관함(IndexedDB)을 열지 못했습니다.";
         };
 
-        // IndexedDB에 데이터를 기억(저장)시키는 함수
+        // IndexedDB에 성공한 데이터를 기억시키는 함수
         function saveToIndexedDB(name, content) {
             if (!idb) return;
             const transaction = idb.transaction(["notion_sent"], "readwrite");
@@ -89,89 +86,43 @@
             store.put({ name: name, content: content, savedAt: new Date().getTime() });
         }
 
-        // IndexedDB에 이미 이 이름이 있는지 검사하는 함수
-        function checkIsDuplicate(name) {
+        // IndexedDB에서 모든 임시 자료들을 꺼내오는 함수
+        function getAllItemsFromIndexedDB() {
             return new Promise((resolve) => {
-                if (!idb) return resolve(false);
+                if (!idb) return resolve([]);
                 const transaction = idb.transaction(["notion_sent"], "readonly");
                 const store = transaction.objectStore("notion_sent");
-                const request = store.get(name);
+                const request = store.getAll(); // 보관함 안의 모든 데이터 가져오기
                 
                 request.onsuccess = function(e) {
-                    if (e.target.result) {
-                        resolve(true); // 이미 존재함 (중복)
-                    } else {
-                        resolve(false); // 존재하지 않음 (새로운 자료)
-                    }
+                    resolve(e.target.result || []);
                 };
-                request.onerror = function() { resolve(false); };
+                request.onerror = function() { resolve([]); };
             });
         }
 
         // -------------------------------------------------------------
-        // 🔥 2. Firebase 실시간 감시 엔진
+        // 🔥 2. Firebase에 즉각 반영(저장)하는 함수
         // -------------------------------------------------------------
-        function startFirebaseListening() {
-            onSnapshot(collection(db, COLLECTION_NAME), (snapshot) => {
-                currentFirebaseData = []; // 리스트 초기화
-                
-                snapshot.forEach((doc) => {
-                    const docData = doc.data();
-                    const name = docData.name || "이름 없음";
-                    const content = docData.content || "내용 없음";
-                    
-                    // 현재 파이어베이스에 있는 모든 데이터를 프로그램 기억창고에 모아둡니다
-                    currentFirebaseData.push({ name, content });
+        async function sendToFirebase(name, content) {
+            try {
+                // 이름(name)을 문서 아이디로 지정하여 중복 생성을 방지하며 저장합니다
+                const docRef = doc(db, COLLECTION_NAME, name);
+                await setDoc(docRef, {
+                    name: name,
+                    content: content,
+                    updatedAt: new Date().toISOString()
                 });
-                
-                printLog(`<span class="info">ℹ️ Firebase로부터 총 ${currentFirebaseData.length}개의 데이터를 실시간 감지해 대기 중입니다.</span>`);
-            });
+                printLog(`<span class="fb-success">🔥 [Firebase] 즉각 반영 성공: ${name}</span>`);
+                return true;
+            } catch (error) {
+                printLog(`<span class="warn">❌ [Firebase] 반영 실패: ${error.message}</span>`);
+                return false;
+            }
         }
 
         // -------------------------------------------------------------
-        // 🔄 3. 연동 버튼 클릭 시 작동하는 중복 방지 로직
-        // -------------------------------------------------------------
-        syncBtn.addEventListener("click", async () => {
-            if (currentFirebaseData.length === 0) {
-                alert("연동할 Firebase 데이터가 아직 없습니다!");
-                return;
-            }
-
-            syncBtn.disabled = true;
-            syncBtn.innerText = "⏳ 중복 검사 및 전송 중...";
-            printLog(`<b>🔄 [연동 시작] 중복 검사를 진행합니다...</b>`);
-
-            let sendCount = 0;
-            let skipCount = 0;
-
-            for (const item of currentFirebaseData) {
-                // IndexedDB에 이미 이름이 있는지 확인해봅니다
-                const isDuplicate = await checkIsDuplicate(item.name);
-
-                if (isDuplicate) {
-                    // 중복된 경우 패스!
-                    printLog(`<span class="info">⏭️ 중복 패스: [${item.name}]은 이미 저장소에 보관되어 있어 제외합니다.</span>`);
-                    skipCount++;
-                } else {
-                    // 중복이 아니면 노션으로 쏘기!
-                    printLog(`🚀 새 자료 발견! 노션으로 전송 시도 -> <b>${item.name}</b>`);
-                    
-                    const success = await sendToNotion(item.name, item.content);
-                    if (success) {
-                        // 성공적으로 노션에 갔다면, 다음엔 중복처리되도록 IndexedDB에 저장!
-                        saveToIndexedDB(item.name, item.content);
-                        sendCount++;
-                    }
-                }
-            }
-
-            printLog(`<b class="success">🏁 연동 완료! (새로 보낸 자료: ${sendCount}개 / 중복 제외: ${skipCount}개)</b>`);
-            syncBtn.disabled = false;
-            syncBtn.innerText = "🔄 중복 검사 후 노션에 연동하기";
-        });
-
-        // -------------------------------------------------------------
-        // ✉️ 4. 노션 API 전송 팩토리
+        // ✉️ 3. Notion에 반영(저장)하는 함수
         // -------------------------------------------------------------
         async function sendToNotion(name, content) {
             const proxyUrl = "https://cors-anywhere.herokuapp.com/";
@@ -197,11 +148,11 @@
                 });
 
                 if (response.ok) {
-                    printLog(`<span class="success">✅ 노션 표에 배달 완료: ${name}</span>`);
+                    printLog(`<span class="success">✅ [Notion] 표에 반영 완료: ${name}</span>`);
                     return true;
                 } else {
                     const errText = await response.text();
-                    printLog(`<span class="warn">❌ 노션 배달 실패 [${name}]: ${errText}</span>`);
+                    printLog(`<span class="warn">❌ [Notion] 반영 실패 [${name}]: ${errText}</span>`);
                     return false;
                 }
             } catch (error) {
@@ -210,7 +161,49 @@
             }
         }
 
-        // 화면 기록기
+        // -------------------------------------------------------------
+        // 🔄 4. [연동 버튼] 클릭 시 실행되는 핵심 로직
+        // -------------------------------------------------------------
+        syncBtn.addEventListener("click", async () => {
+            syncBtn.disabled = true;
+            syncBtn.innerText = "⏳ 중복 검사 및 동시 전송 중...";
+            printLog(`<b>🔄 작업을 시작합니다. 컴퓨터 보관함(IndexedDB)을 확인하는 중...</b>`);
+
+            // 1) 내 컴퓨터 보관함(IndexedDB)에 쌓여있는 자료를 전부 긁어옵니다.
+            // (※ 만약 다른 입력창에서 IndexedDB에 데이터를 미리 쌓아두고 있다고 가정합니다.)
+            const localItems = await getAllItemsFromIndexedDB();
+
+            if (localItems.length === 0) {
+                alert("보관함(IndexedDB)에 연동할 데이터가 없습니다! 먼저 데이터를 추가해주세요.");
+                syncBtn.disabled = false;
+                syncBtn.innerText = "🔄 신규 자료 Firebase & 노션 동시 반영하기";
+                return;
+            }
+
+            let syncCount = 0;
+
+            for (const item of localItems) {
+                printLog(`-----------------------------------------------`);
+                printLog(`🔍 검사 중: [${item.name}] 처리 시작`);
+
+                // 2) Firebase에 즉시 반영 시도!
+                const firebaseSuccess = await sendToFirebase(item.name, item.content);
+                
+                // 3) 노션에도 즉시 반영 시도!
+                const notionSuccess = await sendToNotion(item.name, item.content);
+
+                if (firebaseSuccess && notionSuccess) {
+                    syncCount++;
+                }
+            }
+
+            printLog(`-----------------------------------------------`);
+            printLog(`<b class="success">🏁 모든 작업 완료! 총 ${syncCount}개의 자료가 Firebase와 Notion에 동시 반영되었습니다.</b>`);
+            syncBtn.disabled = false;
+            syncBtn.innerText = "🔄 신규 자료 Firebase & 노션 동시 반영하기";
+        });
+
+        // 화면 기록기 함수
         function printLog(message) {
             logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
             logDiv.scrollTop = logDiv.scrollHeight;
