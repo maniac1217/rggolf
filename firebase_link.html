@@ -26,7 +26,7 @@
     <div id="log">아직 진행된 작업이 없습니다.</div>
 
     <script type="module">
-        // 🌟 중복을 제거하고 하나로 깔끔하게 합친 올바른 import 선언
+        // 🟢 [수정 완료] 중복 선언을 제거하고 단 한 번만 명시합니다.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { initializeFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -47,9 +47,10 @@
         const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
         // =====================================================
 
+        // Firebase 앱 초기화 (단 한 번만 수행)
         const app = initializeApp(firebaseConfig);
 
-        // 🌟 웹소켓 차단 환경 우회 및 Firestore 연결 이름(default) 자동 매칭
+        // 롱폴링 우회 적용된 Firestore 데이터베이스 객체 선언
         const db = initializeFirestore(app, {
             experimentalAutoDetectLongPolling: true,
             useFetchStreams: false
@@ -60,6 +61,8 @@
         const syncBtn = document.getElementById("btn-sync");
 
         let idb = null;
+        
+        // (이 아래 indexedDB.open("RG_Golf_DB") 코드부터는 기존 코드 그대로 유지)
         
         // ... (이후 indexedDB.open("RG_Golf_DB") 코드는 그대로 유지)
         
