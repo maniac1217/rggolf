@@ -196,8 +196,8 @@
         }
 
         async function sendToNotion(name, content) {
-            const proxyUrl = "https://cors-anywhere.herokuapp.com/";
-            const notionUrl = "https://api.notion.com/v1/pages";
+            // 🌟 2단계에서 복사한 본인의 구글 웹 앱 URL을 여기에 붙여넣으세요.
+            const googleScriptUrl = "https://script.google.com/macros/s/AKfycbz25LBvotT8e9bI-nrTNln5xSfSAgOmKs8EK6seZYrM1Ap7kacVvnefXnTHm7NyOovx/exec";
 
             const payload = {
                 parent: { database_id: DATABASE_ID },
@@ -207,31 +207,34 @@
                 }
             };
 
+            // 구글 스크립트를 거쳐 노션으로 안전하게 배달하도록 커스텀 요청 구조 변경
+            const requestBody = {
+                auth: `Bearer ${NOTION_TOKEN}`,
+                version: "2022-06-28",
+                payload: payload
+            };
+
             try {
-                const response = await fetch(proxyUrl + notionUrl, {
+                const response = await fetch(googleScriptUrl, {
                     method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${NOTION_TOKEN}`,
-                        "Content-Type": "application/json",
-                        "Notion-Version": "2022-06-28"
-                    },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(requestBody)
                 });
 
-                if (response.ok) {
-                    printLog(`<span class="success">✅ [Notion] 표에 반영 완료: ${name}</span>`);
+                const resultJson = await response.json();
+
+                if (response.ok && !resultJson.error && resultJson.object !== "error") {
+                    printLog(`<span class="success">✅ [Notion] 구글우회망 통해 표 반영 완료: ${name}</span>`);
                     return true;
                 } else {
-                    const errText = await response.text();
-                    printLog(`<span class="warn">❌ [Notion] 반영 실패 [${name}]: ${errText}</span>`);
+                    const errMsg = resultJson.message || resultJson.error || "알 수 없는 노션 반환 에러";
+                    printLog(`<span class="warn">❌ [Notion] 반영 실패 [${name}]: ${errMsg}</span>`);
                     return false;
                 }
             } catch (error) {
-                printLog(`<span class="warn">❌ 연결 오류 (cors-anywhere 활성화를 확인하세요)</span>`);
+                printLog(`<span class="warn">❌ 구글 우회 서버 연결 실패: ${error.message}</span>`);
                 return false;
             }
         }
-
         syncBtn.addEventListener("click", async () => {
             syncBtn.disabled = true;
             syncBtn.innerText = "⏳ 파이어베이스 강제 전송 중...";
