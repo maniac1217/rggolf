@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase 🔥 Notion 실시간 연동기</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
+        #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; }
+        #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+
+    <h2>🔥 Firebase ➡️ Notion 실시간 전송 대시보드</h2>
+    <div id="status">상태: Firebase 실시간 감시 카메라 작동 준비 중...</div>
+    
+    <h3>배달 기록창</h3>
+    <div id="log">아직 들어온 데이터가 없습니다.</div>
+
+    <!-- 1. Firebase를 사용하기 위한 자바스크립트 도구 세트 가져오기 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ==================== [초등학생 주목! 여기만 바꿔주세요] ====================
+        // 1. 내 Firebase 프로젝트 설정 정보를 붙여넣으세요
+        const firebaseConfig = {
+                  apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
+                  authDomain: "rg-golf.firebaseapp.com",
+                  databaseURL: "https://rg-golf-default-rtdb.asia-southeast1.firebasedatabase.app",
+                  projectId: "rg-golf",
+                 storageBucket: "rg-golf.firebasestorage.app",
+                 messagingSenderId: "382686211001",
+                 appId: "1:382686211001:web:9c0dfba9c93b7966c9a468",
+                   measurementId: "G-WT14V4N0EX"
+                 };
+
+        const COLLECTION_NAME = "rg-golf"; // 감시할 Firebase 컬렉션(방) 이름
+        
+        // 2. 노션 정보 입력하기
+        const NOTION_TOKEN = "secret_이곳에_노션_토큰을_넣으세요";
+        const DATABASE_ID = "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";
+        // =========================================================================
+
+        // Firebase 켜기
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const statusDiv = document.getElementById("status");
+        const logDiv = document.getElementById("log");
+
+        statusDiv.innerText = "상태: 👀 눈을 크게 뜨고 Firebase 실시간 감시 중...";
+        logDiv.innerHTML = "";
+
+        // 2. Firebase 실시간 감시 카메라 작동
+        onSnapshot(collection(db, COLLECTION_NAME), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                // 새로운 데이터가 추가되었을 때만 작동!
+                if (change.type === "added") {
+                    const docData = change.doc.data();
+                    
+                    // 내 Firebase 필드명에 맞게 name과 content를 꺼냅니다
+                    const name = docData.name || "이름 없음";
+                    const content = docData.content || "내용 없음";
+
+                    printLog(`🔥 Firebase에서 새 데이터 발견: <b>${name}</b> (${content})`);
+                    
+                    // 노션으로 배달 출발!
+                    sendToNotion(name, content);
+                }
+            });
+        });
+
+        // 3. 노션 표에 데이터를 쏙 넣어주는 함수
+        async function sendToNotion(name, content) {
+            // 웹브라우저 보안 규칙 때문에 프록시(Proxy) 서버 주소를 앞에 붙여서 보냅니다
+            const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+            const notionUrl = "https://api.notion.com/v1/pages";
+
+            const payload = {
+                parent: { database_id: DATABASE_ID },
+                properties: {
+                    "Name": { title: [{ text: { content: name } }] },
+                    "Content": { rich_text: [{ text: { content: content } }] }
+                }
+            };
+
+            try {
+                const response = await fetch(proxyUrl + notionUrl, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${NOTION_TOKEN}`,
+                        "Content-Type": "application/json",
+                        "Notion-Version": "2022-06-28"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    printLog(`<span class="success">✅ 노션 표에 배달 완료: ${name}</span>`);
+                } else {
+                    const errText = await response.text();
+                    printLog(`❌ 노션 배달 실패 원인: ${errText}`);
+                }
+            } catch (error) {
+                printLog(`❌ 연결 오류 발생 (주소창에 cors-anywhere 활성화를 확인해보세요)`);
+            }
+        }
+
+        // 화면에 글자를 찍어주는 보조 함수
+        function printLog(message) {
+            logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
