@@ -2,25 +2,25 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Firebase 🔥 Notion 맞춤형 연동기</title>
+    <title>Firebase 🔥 Notion 강제 연동기</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
         #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; margin-bottom: 10px; }
-        #btn-sync { padding: 12px 24px; font-size: 16px; font-weight: bold; background-color: #009688; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-        #btn-sync:hover { background-color: #00897b; }
+        #btn-sync { padding: 12px 24px; font-size: 16px; font-weight: bold; background-color: #e91e63; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        #btn-sync:hover { background-color: #c2185b; }
         #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ccc; }
         .success { color: green; font-weight: bold; }
-        .fb-success { color: #0288d1; font-weight: bold; }
+        .fb-success { color: #ff5722; font-weight: bold; } /* 강제전송은 주황색 강조 */
         .info { color: #757575; }
-        .warn { color: #f44336; font-weight: bold; }
+        .warn { color: #f44336; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-    <h2>🔥 대시보드: Firebase 즉시 반영 & Notion 중복 제외 전송</h2>
+    <h2>🔥 대시보드: 수동 입력 자료 Firebase 강제 전송 시스템</h2>
     <div id="status">상태: 데이터베이스 연결 준비 중...</div>
     
-    <button id="btn-sync">🔄 전틀 자료 Firebase 반영 + 신규 자료 노션 연동</button>
+    <button id="btn-sync">🚀 IndexedDB 자료 Firebase 무조건 강제 전송</button>
 
     <h3>배달 작업 기록창</h3>
     <div id="log">아직 진행된 작업이 없습니다.</div>
@@ -29,7 +29,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==================== [초등학생 주목! 여기만 확인하세요] ====================
+        // ==================== [설정값 확인] ====================
         const firebaseConfig = {
             apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
             authDomain: "rg-golf.firebaseapp.com",
@@ -43,10 +43,9 @@
 
         const COLLECTION_NAME = "rg-golf"; 
         
-        // 노션 정보 (※ 본인의 비밀 토큰을 여기에 꼭 적어주세요!)
         const NOTION_TOKEN = "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";
         const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
-        // =========================================================================
+        // =====================================================
 
         // Firebase 켜기
         const app = initializeApp(firebaseConfig);
@@ -55,19 +54,15 @@
         const logDiv = document.getElementById("log");
         const syncBtn = document.getElementById("btn-sync");
 
-        // -------------------------------------------------------------
-        // 💾 1. IndexedDB (내 컴퓨터 보관함) 설정
-        // -------------------------------------------------------------
+        // 💾 1. IndexedDB 설정
         let idb = null;
-        const dbRequest = indexedDB.open("GolfDataBackupDB", 2); // 버전을 2로 올려 창고를 새로 고칩니다.
+        const dbRequest = indexedDB.open("GolfDataBackupDB", 2);
 
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
-            // 대기 중인 전체 원본 데이터를 담는 창고
             if (!database.objectStoreNames.contains("local_source")) {
                 database.createObjectStore("local_source", { keyPath: "name" });
             }
-            // 노션에 성공적으로 보낸 녀석들만 기억하는 창고 (중복 방지용)
             if (!database.objectStoreNames.contains("notion_sent")) {
                 database.createObjectStore("notion_sent", { keyPath: "name" });
             }
@@ -75,14 +70,13 @@
 
         dbRequest.onsuccess = function(e) {
             idb = e.target.result;
-            statusDiv.innerText = "상태: 🟢 준비 완료! 버튼을 누르면 연동 시스템이 가동됩니다.";
+            statusDiv.innerText = "상태: 🟢 수동 자료 강제 전송 스탠바이 완료!";
         };
 
         dbRequest.onerror = function() {
-            statusDiv.innerText = "상태: ❌ 내 컴퓨터 보관함(IndexedDB)을 열지 못했습니다.";
+            statusDiv.innerText = "상태: ❌ IndexedDB 보관함을 열지 못했습니다.";
         };
 
-        // 노션 전송 성공을 기록하는 함수
         function saveToNotionSentHistory(name) {
             if (!idb) return;
             const transaction = idb.transaction(["notion_sent"], "readwrite");
@@ -90,21 +84,17 @@
             store.put({ name: name, sentAt: new Date().getTime() });
         }
 
-        // 노션에 보낸 적이 있는지(중복인지) 검사하는 함수
         function checkNotionHistory(name) {
             return new Promise((resolve) => {
                 if (!idb) return resolve(false);
                 const transaction = idb.transaction(["notion_sent"], "readonly");
                 const store = transaction.objectStore("notion_sent");
                 const request = store.get(name);
-                request.onsuccess = function(e) {
-                    resolve(!!e.target.result); // 데이터가 존재하면 true, 없으면 false
-                };
+                request.onsuccess = function(e) { resolve(!!e.target.result); };
                 request.onerror = function() { resolve(false); };
             });
         }
 
-        // local_source 창고에서 보낼 데이터 전부를 긁어오는 함수
         function getAllItemsFromIndexedDB() {
             return new Promise((resolve) => {
                 if (!idb) return resolve([]);
@@ -116,28 +106,40 @@
             });
         }
 
-        // -------------------------------------------------------------
-        // 🔥 2. Firebase에 즉각 무조건 반영(저장)하는 함수
-        // -------------------------------------------------------------
-        async function sendToFirebase(name, content) {
+        // 🔥 2. ★ 파이어베이스 무조건 강제 전송 함수 ★
+        async function forceSendToFirebase(rawName, rawContent) {
+            // [교정 작업 1] 수동 입력 시 이름 앞뒤에 들어간 쓸데없는 공백 제거
+            let cleanName = rawName ? String(rawName).trim() : "";
+            let cleanContent = rawContent ? String(rawContent).trim() : "내용 없음(수동입력 누락)";
+
+            // [교정 작업 2] 이름이 아예 비어있으면 강제로 랜덤 아이디 부여해서 유실 방지
+            if (cleanName === "") {
+                cleanName = "수동입력_무명자료_" + Math.floor(Math.random() * 10000);
+            }
+
+            // [교정 작업 3] 파이어베이스가 싫어하는 슬래시(/) 기호를 언더바(_)로 강제 변환
+            if (cleanName.includes("/")) {
+                cleanName = cleanName.replace(/\//g, "_");
+            }
+
             try {
-                const docRef = doc(db, COLLECTION_NAME, name);
+                // 상자(Doc)를 만들어서 파이어베이스로 무조건 밀어 넣기
+                const docRef = doc(db, COLLECTION_NAME, cleanName);
                 await setDoc(docRef, {
-                    name: name,
-                    content: content,
+                    name: cleanName,
+                    content: cleanContent,
+                    forcedSync: true, // 강제 전송된 데이터 표시
                     updatedAt: new Date().toISOString()
                 });
-                printLog(`<span class="fb-success">🔥 [Firebase] 즉시 반영 완료: ${name}</span>`);
-                return true;
+                printLog(`<span class="fb-success">🚀 [Firebase 강제성공] 문서명: ${cleanName}</span>`);
+                return { success: true, name: cleanName, content: cleanContent };
             } catch (error) {
-                printLog(`<span class="warn">❌ [Firebase] 저장 실패: ${error.message}</span>`);
-                return false;
+                printLog(`<span class="warn">❌ [Firebase 강제실패] 원인: ${error.message}</span>`);
+                return { success: false, name: cleanName, content: cleanContent };
             }
         }
 
-        // -------------------------------------------------------------
-        // ✉️ 3. Notion에 반영하는 함수 (중복이 아닐 때만 호출됨)
-        // -------------------------------------------------------------
+        // ✉️ 3. Notion에 반영하는 함수
         async function sendToNotion(name, content) {
             const proxyUrl = "https://cors-anywhere.herokuapp.com/";
             const notionUrl = "https://api.notion.com/v1/pages";
@@ -162,11 +164,11 @@
                 });
 
                 if (response.ok) {
-                    printLog(`<span class="success">✅ [Notion] 새 데이터 추가 성공: ${name}</span>`);
+                    printLog(`<span class="success">✅ [Notion] 표에 반영 완료: ${name}</span>`);
                     return true;
                 } else {
                     const errText = await response.text();
-                    printLog(`<span class="warn">❌ [Notion] 전송 실패 [${name}]: ${errText}</span>`);
+                    printLog(`<span class="warn">❌ [Notion] 반영 실패 [${name}]: ${errText}</span>`);
                     return false;
                 }
             } catch (error) {
@@ -175,64 +177,54 @@
             }
         }
 
-        // -------------------------------------------------------------
-        // 🔄 4. [연동 버튼] 클릭 시 실행되는 핵심 로직
-        // -------------------------------------------------------------
+        // 🔄 4. [강제 연동 버튼] 클릭 시 실행
         syncBtn.addEventListener("click", async () => {
             syncBtn.disabled = true;
-            syncBtn.innerText = "⏳ 처리 중...";
-            printLog(`<b>🔄 작업을 시작합니다. 보관함 데이터를 추출하는 중...</b>`);
+            syncBtn.innerText = "⏳ 파이어베이스 강제 돌격 중...";
+            printLog(`<b>🔄 작업을 시작합니다. 수동 입력된 IndexedDB 데이터를 수집 중...</b>`);
 
-            // 1) 컴퓨터 보관함(local_source 창고)에서 모든 데이터를 가져옵니다.
             const localItems = await getAllItemsFromIndexedDB();
 
             if (localItems.length === 0) {
-                alert("보관함에 연동할 데이터가 없습니다!");
+                printLog(`<span class="warn">❌ 'local_source' 창고가 텅 비어있습니다. 수동 입력된 데이터가 맞는지 확인해 주세요.</span>`);
+                alert("전송할 데이터가 없습니다!");
                 syncBtn.disabled = false;
-                syncBtn.innerText = "🔄 신규 자료 Firebase & 노션 동시 반영하기";
+                syncBtn.innerText = "🚀 IndexedDB 자료 Firebase 무조건 강제 전송";
                 return;
             }
 
             let fbCount = 0;
             let notionCount = 0;
-            let notionSkipCount = 0;
 
             for (const item of localItems) {
                 printLog(`-----------------------------------------------`);
-                printLog(`🔍 데이터 처리: <b>[${item.name}]</b>`);
-
-                // 조건 ①: IndexedDB에 있던 자료를 Firebase에 무조건 즉각 반영!
-                const fbSuccess = await sendToFirebase(item.name, item.content);
-                if (fbSuccess) fbCount++;
-
-                // 조건 ②: 기존 노션 보낸 내역(notion_sent 창고)을 뒤져서 중복 검사!
-                const isAlreadySentToNotion = await checkNotionHistory(item.name);
-
-                if (isAlreadySentToNotion) {
-                    // 이미 보낸 적이 있다면 노션은 패스!
-                    printLog(`<span class="info">⏭️ [Notion 패스] 이미 노션에 반영된 자료입니다.</span>`);
-                    notionSkipCount++;
-                } else {
-                    // 보낸 적이 없는 새로운 자료라면 노션에 즉시 반영!
-                    const notionSuccess = await sendToNotion(item.name, item.content);
-                    if (notionSuccess) {
-                        // 성공 시 노션 보낸 내역에 기록하여 다음 중복을 방지합니다.
-                        saveToNotionSentHistory(item.name);
-                        notionCount++;
+                
+                // ① 파이어베이스 문법에 맞게 데이터를 뜯어고쳐서 '강제 전송' 처리
+                const fbResult = await forceSendToFirebase(item.name, item.content);
+                
+                if (fbResult.success) {
+                    fbCount++;
+                    
+                    // ② 파이어베이스 전송에 성공한 데이터 중, 노션에 보낸 적 없는 것만 골라 전송
+                    const isAlreadySent = await checkNotionHistory(fbResult.name);
+                    if (!isAlreadySent) {
+                        const notionSuccess = await sendToNotion(fbResult.name, fbResult.content);
+                        if (notionSuccess) {
+                            saveToNotionSentHistory(fbResult.name);
+                            notionCount++;
+                        }
+                    } else {
+                        printLog(`<span class="info">skip: [${fbResult.name}]은 노션에 이미 존재하여 패스합니다.</span>`);
                     }
                 }
             }
 
             printLog(`-----------------------------------------------`);
-            printLog(`<b class="success">🏁 연동 최종 완료!</b>`);
-            printLog(`- Firebase 반영 완료: ${fbCount}개`);
-            printLog(`- Notion 새 정보 반영: ${notionCount}개 (중복 제외 패스: ${notionSkipCount}개)`);
-            
+            printLog(`<b class="success">🏁 강제 전송 완료! (파이어베이스 강제 반영: ${fbCount}개 / 노션 신규 반영: ${notionCount}개)</b>`);
             syncBtn.disabled = false;
-            syncBtn.innerText = "🔄 전틀 자료 Firebase 반영 + 신규 자료 노션 연동";
+            syncBtn.innerText = "🚀 IndexedDB 자료 Firebase 무조건 강제 전송";
         });
 
-        // 화면 기록기 함수
         function printLog(message) {
             logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
             logDiv.scrollTop = logDiv.scrollHeight;
