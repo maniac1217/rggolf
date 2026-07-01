@@ -1,19 +1,33 @@
+// =======================================================
+// 1. 구글 파이어베이스 실시간 데이터베이스 엔진 로드
+// =======================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+// =======================================================
+// 2. 구글 파이어베이스 설정값 세팅 완료
+// =======================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
+    authDomain: "rg-golf.firebaseapp.com",
+    databaseURL: "https://rg-golf-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "rg-golf",
+    storageBucket: "rg-golf.firebasestorage.app",
+    messagingSenderId: "382686211001",
+    appId: "1:382686211001:web:9c0dfba9c93b7966c9a468",
+    measurementId: "G-WT14V4N0EX"
+};
+
+// 구글 데이터베이스 초기화 및 연결
+const app = initializeApp(firebaseConfig);
+const firebaseDb = getDatabase(app);
+
 // =======================
 // 기본 상수 / 전역 변수
 // =======================
 const ADMIN_PHONE = "01099901806";   // 문자 수신 번호
 const CALL_PHONE  = "0538178800";    // 매장 전화번호
 let db = null;
-
-// [노션 연동 설정]
-// ⚠️ 중요: 여기에 1단계에서 복사한 '진짜 ntn_ 비밀번호'를 오타/공백 없이 바짝 붙여넣으세요!
-const NOTION_API_KEY = "ntn_여기다가복사한진짜비밀번호를붙여넣으세요";
-
-// ⚠️ 중요: 본인의 RGDB 데이터베이스 ID 32자리 (완벽하게 잘 쓰셨으니 그대로 둡니다.)
-const NOTION_DATABASE_ID = "38bb4950c35780e7a2fdf94cd9caf87d"; 
-
-// 브라우저 CORS 에러 우회를 위한 배달원(Cloudflare) 주소
-const MY_WORKER_URL = "https://damp-truth-0bc8.maniac1217.workers.dev/";
 
 // =======================
 // 1. 예약 일시 기본값 세팅
@@ -88,43 +102,45 @@ function getSmsUrl() {
     const bodyConnector = (os === 'ios') ? '&' : '?';
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
-
-// =======================
-// 노션 API 연동 함수 (수정본)
-// =======================
-async function sendToNotion(reservationData) {
-    const payload = {
-        parent: { database_id: NOTION_DATABASE_ID },
-        properties: {
-            "성함": { title: [{ text: { content: reservationData.name } }] },
-            "연락처": { rich_text: [{ text: { content: reservationData.phone } }] },
-            "인원": { rich_text: [{ text: { content: reservationData.count } }] },
-            "예약시간": { rich_text: [{ text: { content: reservationData.time } }] },
-            "결제상태": { select: { name: reservationData.status } }
-        }
-    };
-
+/ =======================================================
+// 6. 구글 파이어베이스 전송 및 로컬 DB 백업 통합 제어 함수
+// =======================================================
+async function saveAndSyncReservation(status) {
     try {
-        console.log("노션 데이터 전송 시작...");
-        
-        const response = await fetch(MY_WORKER_URL, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${NOTION_API_KEY}`,
-                "Notion-Version": "2022-06-28",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
+        const name  = document.getElementById('userName').value.trim();
+        const phone = document.getElementById('userPhone').value.trim();
+        const countRaw = document.getElementById('userCount')?.value || document.getElementById('peopleCount')?.value || "1";
+        const count = parseInt(countRaw, 10);
+        const timeRaw = document.getElementById('bookingTime').value || '';
+        const time = timeRaw ? timeRaw.replace('T', ' ') : '';
 
-        if (response.ok) {
-            console.log("🎉 대성공! 브라우저 차단을 뚫고 노션 DB에 데이터가 저장되었습니다.");
-        } else {
-            const errResult = await response.json().catch(() => ({}));
-            console.error("노션 응답 에러:", response.status, errResult);
+        const newReservation = {
+            name: name,
+            phone: phone,
+            count: count + "명",
+            time: time,
+            status: status,
+            createdAt: new Date().toISOString()
+        };
+
+        // 1단계: 컴퓨터 저장소(IndexedDB) 백업
+        if (localDb) {
+            const transaction = localDb.transaction(["reservations"], "readwrite");
+            const store = transaction.objectStore("reservations");
+            store.add(newReservation);
+            console.log("로컬 IndexedDB 백업 저장 완료");
         }
+
+        // 2단계: 구글 초고속 파이어베이스 실시간 데이터베이스 서버로 직통 전송
+        console.log("구글 Realtime DB 전송 시작...");
+        const reservationsRef = ref(firebaseDb, 'reservations');
+        const newReservationRef = push(reservationsRef);
+        
+        await set(newReservationRef, newReservation);
+        console.log("🎉 구글 파이어베이스 서버에 데이터 저장 성공 완료!");
+
     } catch (error) {
-        console.error("연결 오류 발생:", error);
+        console.error("데이터 구글 전송 또는 저장 중 에러 발생: ", error);
     }
 }
 
