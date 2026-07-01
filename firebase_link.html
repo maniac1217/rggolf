@@ -61,7 +61,7 @@
             let database = e.target.result;
             // 혹시 몰라 비어있을 경우 창고를 안전하게 생성하는 코드 유지
             if (!database.objectStoreNames.contains("reservations")) {
-                database.createObjectStore("local_source", { keyPath: "name" });
+                database.createObjectStore("reservations", { keyPath: "name" });
             }
             if (!database.objectStoreNames.contains("notion_sent")) {
                 database.createObjectStore("notion_sent", { keyPath: "name" });
@@ -85,18 +85,18 @@
             if (!idb) return;
             
             // 🌟 진짜 local_source 방이 존재하는지 목록을 대조해 봅니다.
-            if (!idb.objectStoreNames.contains("local_source")) {
+            if (!idb.objectStoreNames.contains("reservations")) {
                 statusDiv.innerHTML = `상태: ⚠️ RG_Golf_DB는 찾았으나 내부에 <b>local_source</b> 창고가 존재하지 않습니다. (현재 감지된 창고: [${Array.from(idb.objectStoreNames).join(', ')}])`;
                 return;
             }
 
             try {
-                const transaction = idb.transaction(["local_source"], "readonly");
-                const store = transaction.objectStore("local_source");
+                const transaction = idb.transaction(["reservations"], "readonly");
+                const store = transaction.objectStore("reservations");
                 const countRequest = store.count();
 
                 countRequest.onsuccess = function() {
-                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [local_source]</b> 연결 성공! (현재 대기 자료: <span style="color:red; font-size:18px;">${countRequest.result}</span>개)`;
+                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [reservations]</b> 연결 성공! (현재 대기 자료: <span style="color:red; font-size:18px;">${countRequest.result}</span>개)`;
                 };
                 countRequest.onerror = function() {
                     statusDiv.innerText = "상태: ❌ 창고 데이터 개수를 조회하지 못했습니다.";
