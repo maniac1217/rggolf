@@ -102,7 +102,7 @@ function getSmsUrl() {
     const bodyConnector = (os === 'ios') ? '&' : '?';
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
-/ =======================================================
+// =======================================================
 // 6. 구글 파이어베이스 전송 및 로컬 DB 백업 통합 제어 함수
 // =======================================================
 async function saveAndSyncReservation(status) {
