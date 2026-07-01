@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Firebase 🔥 Notion 강제 연동기</title>
+    <title>Firebase 🔥 Notion 강제 연동기 (DB명 수정판)</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
         #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; margin-bottom: 10px; }
@@ -10,7 +10,7 @@
         #btn-sync:hover { background-color: #c2185b; }
         #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ccc; }
         .success { color: green; font-weight: bold; }
-        .fb-success { color: #ff5722; font-weight: bold; } /* 강제전송은 주황색 강조 */
+        .fb-success { color: #ff5722; font-weight: bold; }
         .info { color: #757575; }
         .warn { color: #f44336; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
     </style>
@@ -18,9 +18,9 @@
 <body>
 
     <h2>🔥 대시보드: 수동 입력 자료 Firebase 강제 전송 시스템</h2>
-    <div id="status">상태: 데이터베이스 연결 준비 중...</div>
+    <div id="status">상태: RG_Golf_DB 데이터베이스 연결 중...</div>
     
-    <button id="btn-sync">🚀 IndexedDB 자료 Firebase 무조건 강제 전송</button>
+    <button id="btn-sync">🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송</button>
 
     <h3>배달 작업 기록창</h3>
     <div id="log">아직 진행된 작업이 없습니다.</div>
@@ -47,19 +47,20 @@
         const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
         // =====================================================
 
-        // Firebase 켜기
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const statusDiv = document.getElementById("status");
         const logDiv = document.getElementById("log");
         const syncBtn = document.getElementById("btn-sync");
 
-        // 💾 1. IndexedDB 설정
+        // 💾 1. ★ IndexedDB 이름을 실제 이름인 RG_Golf_DB로 변경! ★
         let idb = null;
-        const dbRequest = indexedDB.open("GolfDataBackupDB", 2);
+        // 기존에 수동으로 만드신 버전에 맞추기 위해 버전을 명시하지 않거나 기존 테이블을 그대로 엽니다.
+        const dbRequest = indexedDB.open("RG_Golf_DB");
 
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
+            // 혹시라도 창고가 없다면 안전하게 생성해 줍니다.
             if (!database.objectStoreNames.contains("local_source")) {
                 database.createObjectStore("local_source", { keyPath: "name" });
             }
@@ -70,12 +71,30 @@
 
         dbRequest.onsuccess = function(e) {
             idb = e.target.result;
-            statusDiv.innerText = "상태: 🟢 수동 자료 강제 전송 스탠바이 완료!";
+            // 연결 성공 시, 진짜로 데이터가 들었는지 개수를 세어봅니다.
+            checkDatabaseCount();
         };
 
         dbRequest.onerror = function() {
-            statusDiv.innerText = "상태: ❌ IndexedDB 보관함을 열지 못했습니다.";
+            statusDiv.innerText = "상태: ❌ 실제 RG_Golf_DB 보관함을 열지 못했습니다. 브라우저 저장소를 확인해 주세요.";
         };
+
+        // 📊 현재 DB에 데이터가 몇 개 쌓여있는지 검사해서 화면에 찍어주는 똑똑한 함수
+        function checkDatabaseCount() {
+            if (!idb) return;
+            try {
+                const transaction = idb.transaction(["local_source"], "readonly");
+                const store = transaction.objectStore("local_source");
+                const countRequest = store.count();
+
+                countRequest.onsuccess = function() {
+                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB</b> 연결 성공! (현재 전송 대기 중인 자료: <span style="color:red; font-size:18px;">${countRequest.result}</span>개)`;
+                };
+            } catch (err) {
+                statusDiv.innerText = "상태: ⚠️ RG_Golf_DB는 열렸으나 'local_source' 창고 이름이 매칭되지 않습니다.";
+                console.error(err);
+            }
+        }
 
         function saveToNotionSentHistory(name) {
             if (!idb) return;
@@ -87,48 +106,53 @@
         function checkNotionHistory(name) {
             return new Promise((resolve) => {
                 if (!idb) return resolve(false);
-                const transaction = idb.transaction(["notion_sent"], "readonly");
-                const store = transaction.objectStore("notion_sent");
-                const request = store.get(name);
-                request.onsuccess = function(e) { resolve(!!e.target.result); };
-                request.onerror = function() { resolve(false); };
+                try {
+                    const transaction = idb.transaction(["notion_sent"], "readonly");
+                    const store = transaction.objectStore("notion_sent");
+                    const request = store.get(name);
+                    request.onsuccess = function(e) { resolve(!!e.target.result); };
+                    request.onerror = function() { resolve(false); };
+                } catch {
+                    resolve(false);
+                }
             });
         }
 
         function getAllItemsFromIndexedDB() {
             return new Promise((resolve) => {
                 if (!idb) return resolve([]);
-                const transaction = idb.transaction(["local_source"], "readonly");
-                const store = transaction.objectStore("local_source");
-                const request = store.getAll();
-                request.onsuccess = function(e) { resolve(e.target.result || []); };
-                request.onerror = function() { resolve([]); };
+                try {
+                    const transaction = idb.transaction(["local_source"], "readonly");
+                    const store = transaction.objectStore("local_source");
+                    const request = store.getAll();
+                    request.onsuccess = function(e) { resolve(e.target.result || []); };
+                    request.onerror = function() { resolve([]); };
+                } catch (err) {
+                    printLog(`<span class="warn">❌ 창고 데이터를 가져오는 중 에러 발생: ${err.message}</span>`);
+                    resolve([]);
+                }
             });
         }
 
-        // 🔥 2. ★ 파이어베이스 무조건 강제 전송 함수 ★
+        // 🔥 2. 파이어베이스 강제 전송 함수
         async function forceSendToFirebase(rawName, rawContent) {
-            // [교정 작업 1] 수동 입력 시 이름 앞뒤에 들어간 쓸데없는 공백 제거
             let cleanName = rawName ? String(rawName).trim() : "";
             let cleanContent = rawContent ? String(rawContent).trim() : "내용 없음(수동입력 누락)";
 
-            // [교정 작업 2] 이름이 아예 비어있으면 강제로 랜덤 아이디 부여해서 유실 방지
             if (cleanName === "") {
                 cleanName = "수동입력_무명자료_" + Math.floor(Math.random() * 10000);
             }
 
-            // [교정 작업 3] 파이어베이스가 싫어하는 슬래시(/) 기호를 언더바(_)로 강제 변환
             if (cleanName.includes("/")) {
                 cleanName = cleanName.replace(/\//g, "_");
             }
 
             try {
-                // 상자(Doc)를 만들어서 파이어베이스로 무조건 밀어 넣기
                 const docRef = doc(db, COLLECTION_NAME, cleanName);
                 await setDoc(docRef, {
                     name: cleanName,
                     content: cleanContent,
-                    forcedSync: true, // 강제 전송된 데이터 표시
+                    forcedSync: true,
                     updatedAt: new Date().toISOString()
                 });
                 printLog(`<span class="fb-success">🚀 [Firebase 강제성공] 문서명: ${cleanName}</span>`);
@@ -139,7 +163,7 @@
             }
         }
 
-        // ✉️ 3. Notion에 반영하는 함수
+        // ✉ * 3. Notion에 반영하는 함수
         async function sendToNotion(name, content) {
             const proxyUrl = "https://cors-anywhere.herokuapp.com/";
             const notionUrl = "https://api.notion.com/v1/pages";
@@ -180,16 +204,16 @@
         // 🔄 4. [강제 연동 버튼] 클릭 시 실행
         syncBtn.addEventListener("click", async () => {
             syncBtn.disabled = true;
-            syncBtn.innerText = "⏳ 파이어베이스 강제 돌격 중...";
-            printLog(`<b>🔄 작업을 시작합니다. 수동 입력된 IndexedDB 데이터를 수집 중...</b>`);
+            syncBtn.innerText = "⏳ 파이어베이스 강제 전송 중...";
+            printLog(`<b>🔄 작업을 시작합니다. RG_Golf_DB의 local_source 데이터를 수집 중...</b>`);
 
             const localItems = await getAllItemsFromIndexedDB();
 
             if (localItems.length === 0) {
-                printLog(`<span class="warn">❌ 'local_source' 창고가 텅 비어있습니다. 수동 입력된 데이터가 맞는지 확인해 주세요.</span>`);
-                alert("전송할 데이터가 없습니다!");
+                printLog(`<span class="warn">❌ 실제 열린 'RG_Golf_DB'의 'local_source' 칸에 데이터가 전송 가능한 상태로 존재하지 않습니다.</span>`);
+                alert("전송할 데이터가 0개입니다!");
                 syncBtn.disabled = false;
-                syncBtn.innerText = "🚀 IndexedDB 자료 Firebase 무조건 강제 전송";
+                syncBtn.innerText = "🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송";
                 return;
             }
 
@@ -199,13 +223,11 @@
             for (const item of localItems) {
                 printLog(`-----------------------------------------------`);
                 
-                // ① 파이어베이스 문법에 맞게 데이터를 뜯어고쳐서 '강제 전송' 처리
                 const fbResult = await forceSendToFirebase(item.name, item.content);
                 
                 if (fbResult.success) {
                     fbCount++;
                     
-                    // ② 파이어베이스 전송에 성공한 데이터 중, 노션에 보낸 적 없는 것만 골라 전송
                     const isAlreadySent = await checkNotionHistory(fbResult.name);
                     if (!isAlreadySent) {
                         const notionSuccess = await sendToNotion(fbResult.name, fbResult.content);
@@ -219,16 +241,14 @@
                 }
             }
 
-            printLog(`-----------------------------------------------`);
+            printLog("-----------------------------------------------");
             printLog(`<b class="success">🏁 강제 전송 완료! (파이어베이스 강제 반영: ${fbCount}개 / 노션 신규 반영: ${notionCount}개)</b>`);
             syncBtn.disabled = false;
-            syncBtn.innerText = "🚀 IndexedDB 자료 Firebase 무조건 강제 전송";
+            syncBtn.innerText = "🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송";
+            
+            // 전송이 끝난 후 개수를 한 번 더 새로고침해 줍니다.
+            checkDatabaseCount();
         });
-
-        function printLog(message) {
-            logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }
     </script>
 </body>
 </html>
