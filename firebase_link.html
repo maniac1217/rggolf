@@ -26,8 +26,9 @@
     <div id="log">아직 진행된 작업이 없습니다.</div>
 
     <script type="module">
+        // 🌟 중복을 제거하고 하나로 깔끔하게 합친 올바른 import 선언
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initializeFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==================== [설정값 확인] ====================
         const firebaseConfig = {
@@ -46,24 +47,21 @@
         const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
         // =====================================================
 
-       // 상단 import문에 initializeFirestore와 settings를 추가해야 합니다.
-       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-       import { initializeFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        const app = initializeApp(firebaseConfig);
 
-       const app = initializeApp(firebaseConfig);
+        // 🌟 웹소켓 차단 환경 우회 및 Firestore 연결 이름(default) 자동 매칭
+        const db = initializeFirestore(app, {
+            experimentalAutoDetectLongPolling: true,
+            useFetchStreams: false
+        });
 
-      // 🌟 중요: 웹소켓 차단 환경을 우회하는 롱폴링 설정 적용
-       const db = initializeFirestore(app, {
-              experimentalAutoDetectLongPolling: true,
-              useFetchStreams: false
-              });
-
-        
         const statusDiv = document.getElementById("status");
         const logDiv = document.getElementById("log");
         const syncBtn = document.getElementById("btn-sync");
 
         let idb = null;
+        
+        // ... (이후 indexedDB.open("RG_Golf_DB") 코드는 그대로 유지)
         
         const dbRequest = indexedDB.open("RG_Golf_DB");
 
