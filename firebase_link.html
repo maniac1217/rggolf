@@ -139,8 +139,8 @@
             return new Promise((resolve) => {
                 if (!idb) return resolve([]);
                 try {
-                    const transaction = idb.transaction(["local_source"], "readonly");
-                    const store = transaction.objectStore("local_source");
+                    const transaction = idb.transaction(["reservations"], "readonly");
+                    const store = transaction.objectStore("reservations");
                     const request = store.getAll();
                     request.onsuccess = function(e) { resolve(e.target.result || []); };
                     request.onerror = function() { resolve([]); };
@@ -219,7 +219,7 @@
         syncBtn.addEventListener("click", async () => {
             syncBtn.disabled = true;
             syncBtn.innerText = "⏳ 파이어베이스 강제 전송 중...";
-            printLog(`<b>🔄 작업을 시작합니다. RG_Golf_DB의 local_source 데이터를 수집 중...</b>`);
+            printLog(`<b>🔄 작업을 시작합니다. RG_Golf_DB의 reservations 데이터를 수집 중...</b>`);
 
             const localItems = await getAllItemsFromIndexedDB();
 
