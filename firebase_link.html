@@ -54,12 +54,10 @@
 
         let idb = null;
         
-        // 🌟 해결책: 버전을 직접 명시하지 않고 브라우저에 이미 생성된 버전을 자연스럽게 이어받아 열도록 유도합니다.
         const dbRequest = indexedDB.open("RG_Golf_DB");
 
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
-            // 혹시 몰라 비어있을 경우 창고를 안전하게 생성하는 코드 유지
             if (!database.objectStoreNames.contains("reservations")) {
                 database.createObjectStore("reservations", { keyPath: "name" });
             }
@@ -70,8 +68,6 @@
 
         dbRequest.onsuccess = function(e) {
             idb = e.target.result;
-            
-            // 🌟 수동 입력 프로그램의 특성상 아직 데이터베이스 스토어 활성화가 덜 되었을 수 있으므로 0.2초의 여유를 두고 검사합니다.
             setTimeout(() => {
                 checkDatabaseCount();
             }, 200);
@@ -84,7 +80,6 @@
         function checkDatabaseCount() {
             if (!idb) return;
             
-            // 🌟 진짜 local_source 방이 존재하는지 목록을 대조해 봅니다.
             if (!idb.objectStoreNames.contains("reservations")) {
                 statusDiv.innerHTML = `상태: ⚠️ RG_Golf_DB는 찾았으나 내부에 <b>local_source</b> 창고가 존재하지 않습니다. (현재 감지된 창고: [${Array.from(idb.objectStoreNames).join(', ')}])`;
                 return;
@@ -110,12 +105,10 @@
         function saveToNotionSentHistory(name) {
             if (!idb) return;
             try {
-                // 노션 중복 방지 창고가 수동 입력 DB에 없을 수 있으므로 없으면 즉석 생성 조치
                 const transaction = idb.transaction(["notion_sent"], "readwrite");
                 const store = transaction.objectStore("notion_sent");
                 store.put({ name: name, sentAt: new Date().getTime() });
             } catch {
-                // 창고가 없을 경우 에러로 멈추지 않고 통과시킵니다.
                 console.log("notion_sent 창고가 없어 기록을 스킵합니다.");
             }
         }
@@ -165,16 +158,27 @@
 
             try {
                 const docRef = doc(db, COLLECTION_NAME, cleanName);
-                await setDoc(docRef, {
+                
+                // 🌟 중요 변경: 제한시간(Timeout)을 두어 Firebase 연동 실패 시 무한대기를 방지합니다.
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Firebase 서버 응답 시간 초과 (보안 규칙 또는 네트워크 확인 필요)")), 5000)
+                );
+
+                const syncPromise = setDoc(docRef, {
                     name: cleanName,
                     content: cleanContent,
                     forcedSync: true,
                     updatedAt: new Date().toISOString()
                 });
+
+                // 둘 중 먼저 끝나는 것을 실행
+                await Promise.race([syncPromise, timeoutPromise]);
+
                 printLog(`<span class="fb-success">🚀 [Firebase 강제성공] 문서명: ${cleanName}</span>`);
                 return { success: true, name: cleanName, content: cleanContent };
             } catch (error) {
                 printLog(`<span class="warn">❌ [Firebase 강제실패] 원인: ${error.message}</span>`);
+                console.error("Firebase 상세 에러:", error); // 브라우저 콘솔창에 디버깅용 상세 에러 출력
                 return { success: false, name: cleanName, content: cleanContent };
             }
         }
@@ -237,7 +241,6 @@
             for (const item of localItems) {
                 printLog(`-----------------------------------------------`);
                 
-                // 🌟 수동 입력 데이터의 필드명이 name/content가 아닐 때를 대비한 자동 추적 장치
                 const targetName = item.name || item.title || item.id || (typeof item === 'object' ? Object.values(item)[0] : '무명자료');
                 const targetContent = item.content || item.value || item.text || (typeof item === 'object' ? Object.values(item)[1] : '내용없음');
 
