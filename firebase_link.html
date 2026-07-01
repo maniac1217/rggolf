@@ -46,8 +46,19 @@
         const DATABASE_ID = "390b4950c35780a690f9e911052349dd"; 
         // =====================================================
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+       // 상단 import문에 initializeFirestore와 settings를 추가해야 합니다.
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+       import { initializeFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+       const app = initializeApp(firebaseConfig);
+
+      // 🌟 중요: 웹소켓 차단 환경을 우회하는 롱폴링 설정 적용
+       const db = initializeFirestore(app, {
+              experimentalAutoDetectLongPolling: true,
+              useFetchStreams: false
+              });
+
+        
         const statusDiv = document.getElementById("status");
         const logDiv = document.getElementById("log");
         const syncBtn = document.getElementById("btn-sync");
