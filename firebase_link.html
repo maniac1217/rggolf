@@ -108,9 +108,12 @@
         };
 
         dbRequest.onsuccess = function(e) {
-            idb = e.target.result;
-            setTimeout(() => { checkDatabaseCount(); }, 200);
-        };
+    idb = e.target.result;
+    setTimeout(() => { 
+        checkDatabaseCount(); 
+        viewIndexedDBData(); // 👈 이 줄을 추가해서 자동으로 리스트를 채웁니다.
+    }, 200);
+};
 
         dbRequest.onerror = function() {
             statusDiv.innerText = "상태: ❌ 실제 RG_Golf_DB 보관함을 열지 못했습니다.";
@@ -135,78 +138,7 @@
         }
 
         // 🔍 [기능 개선] 모듈 환경에 완벽 부합하도록 이벤트 리스너 형식으로 변경된 리스트 출력 함수
-        function viewIndexedDBData() {
-            const tbody = document.getElementById("db-list-tbody");
-            if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
-
-            try {
-                const transaction = idb.transaction(["reservations"], "readonly");
-                const store = transaction.objectStore("reservations");
-                const request = store.getAll(); 
-
-                request.onsuccess = function(e) {
-                    const items = e.target.result || [];
-                    tbody.innerHTML = ""; 
-
-                    if (items.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
-                        return;
-                    }
-
-                    items.forEach(item => {
-                        const tr = document.createElement("tr");
-                        let currentName = item.name || "무명자료";
-                        if (item.content && typeof item.content === 'object') {
-                            currentName = item.content.name || currentName;
-                        }
-
-                        let displayContent = "";
-                        if (item.content && typeof item.content === 'object') {
-                            const c = item.content;
-                            displayContent = `📞연락처: ${c.phone || '-'} | 👥인원: ${c.count || '-'} | ⏰시간: ${c.time || '-'} | 💳상태: ${c.status || '-'}`;
-                        } else if (item.phone || item.time) {
-                            displayContent = `📞연락처: ${item.phone || '-'} | 👥인원: ${item.count || '-'} | ⏰시간: ${item.time || '-'} | 💳상태: ${item.status || '-'}`;
-                        } else {
-                            displayContent = String(item.content || JSON.stringify(item));
-                        }
-
-                        const tdName = document.createElement("td");
-                        tdName.style.padding = "10px"; tdName.style.fontWeight = "bold";
-                        tdName.innerText = currentName;
-
-                        const tdContent = document.createElement("td");
-                        tdContent.style.padding = "10px"; tdContent.style.color = "#333";
-                        tdContent.innerText = displayContent;
-
-                        const tdAction = document.createElement("td");
-                        tdAction.style.padding = "10px"; tdAction.style.textAlign = "center";
-                        
-                        // 개별 삭제 버튼 이벤트 바인딩
-                        const delBtn = document.createElement("button");
-                        delBtn.innerText = "삭제";
-                        delBtn.style.cssText = "padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;";
-                        delBtn.onclick = function() {
-                            if (confirm(`[${currentName}] 데이터를 삭제하시겠습니까?`)) {
-                                const delTx = idb.transaction(["reservations"], "readwrite");
-                                delTx.objectStore("reservations").delete(item.name).onsuccess = function() {
-                                    alert("삭제 완료되었습니다.");
-                                    viewIndexedDBData();
-                                    checkDatabaseCount();
-                                };
-                            }
-                        };
-                        tdAction.appendChild(delBtn);
-
-                        tr.appendChild(tdName);
-                        tr.appendChild(tdContent);
-                        tr.appendChild(tdAction);
-                        tbody.appendChild(tr);
-                    });
-                };
-            } catch (err) {
-                alert("창고 접근 오류: " + err.message);
-            }
-        }
+        
 
         // 버튼 클릭 이벤트 명시적 연동
         document.getElementById("btn-view-db").addEventListener("click", viewIndexedDBData);
@@ -214,7 +146,73 @@
         // 🌐 구글 시트로 내보내기 및 자동 오픈 기능
         async function exportAndOpenGoogleSheet() {
             if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
-            try {
+         // 🔍 창고에 들어있는 데이터를 수단과 방법을 가리지 않고 화면에 그리는 함수
+function viewIndexedDBData() {
+    const tbody = document.getElementById("db-list-tbody");
+    if (!idb) return;
+
+    try {
+        const transaction = idb.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const request = store.getAll(); 
+
+        request.onsuccess = function(e) {
+            const items = e.target.result || [];
+            tbody.innerHTML = ""; 
+
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const tr = document.createElement("tr");
+                
+                // 1. 이름 추출 (어디에 들어있든 무조건 찾아냄)
+                let currentName = item.name || (item.content && item.content.name) || "무명자료";
+                
+                // 2. 내용 조립 (상세 내역 매칭 하이패스)
+                let displayContent = "";
+                let c = (item.content && typeof item.content === 'object') ? item.content : item;
+                
+                displayContent = `📞연락처: ${c.phone || item.phone || '-'} | 👥인원: ${c.count || item.count || '-'} | ⏰시간: ${c.time || item.time || '-'} | 💳상태: ${c.status || item.status || '-'}`;
+
+                // 3. 표(Table) 세포 만들기
+                const tdName = document.createElement("td");
+                tdName.style.padding = "10px"; tdName.style.fontWeight = "bold";
+                tdName.innerText = currentName;
+
+                const tdContent = document.createElement("td");
+                tdContent.style.padding = "10px"; tdContent.style.color = "#333";
+                tdContent.innerText = displayContent;
+
+                const tdAction = document.createElement("td");
+                tdAction.style.padding = "10px"; tdAction.style.textAlign = "center";
+                
+                const delBtn = document.createElement("button");
+                delBtn.innerText = "삭제";
+                delBtn.style.cssText = "padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;";
+                delBtn.onclick = function() {
+                    if (confirm(`[${currentName}] 데이터를 삭제하시겠습니까?`)) {
+                        idb.transaction(["reservations"], "readwrite").objectStore("reservations").delete(item.name).onsuccess = function() {
+                            alert("삭제 완료되었습니다.");
+                            viewIndexedDBData();
+                            checkDatabaseCount();
+                        };
+                    }
+                };
+                tdAction.appendChild(delBtn);
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdContent);
+                tr.appendChild(tdAction);
+                tbody.appendChild(tr);
+            });
+        };
+    } catch (err) {
+        console.error("화면 표시 중 에러:", err);
+    }
+}   try {
                 const transaction = idb.transaction(["reservations"], "readonly");
                 const store = transaction.objectStore("reservations");
                 const request = store.getAll();
