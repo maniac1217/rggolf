@@ -44,6 +44,9 @@
         </table>
     </div>
 </div>
+<button id="btn-google-open" onclick="exportAndOpenGoogleSheet()" style="padding: 8px 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px;">
+    🌐 구글시트로 즉시 자동 오픈하기
+</button>    
 <button id="btn-export-csv" onclick="exportIndexedDBToExcel()" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px;">
     📊 엑셀/구글시트용 파일 다운로드
 </button>
@@ -474,6 +477,61 @@ window.exportIndexedDBToExcel = function() {
         alert("창고 접근 에러: " + err.message);
     }
 }; 
+        window.exportAndOpenGoogleSheet = async function() {
+    if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
+    
+    // ⚠️ 용섭님의 최신 구글 스크립트 배포 URL 주소를 적어주세요!
+    const googleScriptUrl = "여기에_1단계에서_새로_배포한_구글_주소_입력";
+
+    try {
+        const transaction = idb.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const request = store.getAll();
+
+        request.onsuccess = async function(e) {
+            const items = e.target.result || [];
+            if (items.length === 0) { return alert("보낼 데이터가 없습니다."); }
+
+            // 구글 서버가 바로 먹을 수 있게 이쁘게 정제 데이터 배열 조립
+            const parsedRows = items.map(item => {
+                let name = item.name || "", phone = item.phone || "", count = item.count || "", time = item.time || "", status = item.status || "", createdAt = item.createdAt || "", id = item.id || "";
+                if (item.content && typeof item.content === 'object') {
+                    name = item.content.name || name; phone = item.content.phone || phone; count = item.content.count || count; time = item.content.time || time; status = item.content.status || status; createdAt = item.content.createdAt || createdAt;
+                }
+                return { name, phone, count, time, status, createdAt, id };
+            });
+
+            document.getElementById("btn-google-open").innerText = "⏳ 구글 시트 생성 및 이동 중...";
+            document.getElementById("btn-google-open").disabled = true;
+
+            // 구글 앱스 스크립트 우회망으로 데이터 다이렉트 전송
+            const response = await fetch(googleScriptUrl, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "createGoogleSheet",
+                    csvData: parsedRows
+                })
+            });
+
+            const resultText = await response.text();
+            const resultJson = JSON.parse(resultText);
+
+            if (resultJson.success && resultJson.sheetUrl) {
+                printLog(`<span class="success">✅ 구글 드라이브에 시트 생성 완료! 새 창을 엽니다.</span>`);
+                // 🌟 핵심 기능: 구글이 만들어준 원본 스프레드시트 주소로 브라우저 새 창을 강제로 열어버립니다!
+                window.open(resultJson.sheetUrl, "_blank");
+            } else {
+                alert("구글 시트 생성 실패: " + JSON.stringify(resultJson));
+            }
+
+            document.getElementById("btn-google-open").innerText = "🌐 구글시트로 즉시 자동 오픈하기";
+            document.getElementById("btn-google-open").disabled = false;
+        };
+    } catch (err) {
+        alert("창고 접근 실패: " + err.message);
+    }
+};
     </script>
 </body>
 </html>
