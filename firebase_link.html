@@ -21,6 +21,29 @@
     <div id="status">상태: RG_Golf_DB 데이터베이스 연결 중...</div>
     
     <button id="btn-sync">🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송</button>
+    <div style="margin-top: 30px; margin-bottom: 30px; background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+    <h3 style="margin-top:0; color: #333;">📦 브라우저 창고(IndexedDB) 저장 데이터 실시간 조회</h3>
+    <button id="btn-view-db" onclick="viewIndexedDBData()" style="padding: 8px 16px; background-color: #008cba; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+        🔍 창고 데이터 전부 펼쳐보기
+    </button>
+    
+    <div style="margin-top: 15px; overflow-x: auto;">
+        <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 10px;">이름 (Key)</th>
+                    <th style="padding: 10px;">내용 (상세 데이터)</th>
+                    <th style="padding: 10px;">관리</th>
+                </tr>
+            </thead>
+            <tbody id="db-list-tbody">
+                <tr>
+                    <td colspan="3" style="padding: 15px; text-align: center; color: #999;">[펼쳐보기] 버튼을 누르면 이 자리에 로컬 데이터가 로드됩니다.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
     <h3>배달 작업 기록창</h3>
     <div id="log">아직 진행된 작업이 없습니다.</div>
@@ -282,6 +305,93 @@
             logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
             logDiv.scrollTop = logDiv.scrollHeight;
         }
+        // 🌟 1. IndexedDB 내부 창고를 싹 긁어서 화면 표(Table)에 채워 넣는 함수
+window.viewIndexedDBData = function() {
+    const tbody = document.getElementById("db-list-tbody");
+    
+    // 이 파일 상단에서 초기화된 idb(IndexedDB 객체)가 있는지 검증
+    if (!idb) {
+        alert("데이터베이스가 아직 연결되지 않았거나 열 수 없는 상태입니다.");
+        return;
+    }
+
+    try {
+        const transaction = idb.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const request = store.getAll(); // 모든 데이터 통째로 가져오기
+
+        request.onsuccess = function(e) {
+            const items = e.target.result || [];
+            tbody.innerHTML = ""; // 기존 글씨 초기화
+
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
+                return;
+            }
+
+            // 데이터를 한 줄씩 표에 추가
+            items.forEach(item => {
+                const tr = document.createElement("tr");
+                
+                // 이름(Key) 칸
+                const tdName = document.createElement("td");
+                tdName.style.padding = "10px";
+                tdName.style.fontWeight = "bold";
+                tdName.innerText = item.name || "무명자료";
+
+                // 상세 내용 칸 (객체 형태면 예쁘게 글자로 변환)
+                const tdContent = document.createElement("td");
+                tdContent.style.padding = "10px";
+                tdContent.style.color = "#555";
+                tdContent.innerText = typeof item.content === 'object' ? JSON.stringify(item.content) : String(item.content || JSON.stringify(item));
+
+                // 관리(삭제) 칸
+                const tdAction = document.createElement("td");
+                tdAction.style.padding = "10px";
+                tdAction.style.textAlign = "center";
+                tdAction.innerHTML = `<button onclick="deleteIndexedDBItem('${item.name}')" style="padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">삭제</button>`;
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdContent);
+                tr.appendChild(tdAction);
+                tbody.appendChild(tr);
+            });
+            
+            console.log("IndexedDB 데이터 화면 표출 성공:", items.length, "건");
+        };
+
+        request.onerror = function() {
+            alert("창고 데이터를 읽어오는 과정에서 에러가 발생했습니다.");
+        };
+    } catch (err) {
+        alert("reservations 창고에 접근할 수 없습니다: " + err.message);
+    }
+};
+
+// 🌟 2. 잘못 저장된 로컬 데이터를 개별적으로 지울 수 있는 수동 삭제 함수
+window.deleteIndexedDBItem = function(keyName) {
+    if (!confirm(`[${keyName}] 데이터를 브라우저 창고에서 영구 삭제하시겠습니까?\n(파이어베이스나 노션 서버 데이터는 지워지지 않습니다.)`)) {
+        return;
+    }
+
+    try {
+        const transaction = idb.transaction(["reservations"], "readwrite");
+        const store = transaction.objectStore("reservations");
+        const request = store.delete(keyName);
+
+        request.onsuccess = function() {
+            alert("로컬 창고에서 정상적으로 삭제되었습니다.");
+            window.viewIndexedDBData(); // 삭제 후 표 갱신
+            if (typeof checkDatabaseCount === "function") checkDatabaseCount(); // 상단 대기 개수 알림 갱신
+        };
+
+        request.onerror = function() {
+            alert("데이터 삭제에 실패했습니다.");
+        };
+    } catch (err) {
+        alert("삭제 작업 중 오류 발생: " + err.message);
+    }
+};
     </script>
 </body>
 </html>
