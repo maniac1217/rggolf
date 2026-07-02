@@ -44,7 +44,9 @@
         </table>
     </div>
 </div>
-
+<button id="btn-export-csv" onclick="exportIndexedDBToExcel()" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px;">
+    📊 엑셀/구글시트용 파일 다운로드
+</button>
     <h3>배달 작업 기록창</h3>
     <div id="log">아직 진행된 작업이 없습니다.</div>
 
@@ -392,6 +394,86 @@ window.deleteIndexedDBItem = function(keyName) {
         alert("삭제 작업 중 오류 발생: " + err.message);
     }
 };
+       // 🌟 JSON 뭉텅이 데이터를 엑셀/구글시트가 인식하는 깨끗한 표(CSV)로 변환해 다운로드하는 함수
+window.exportIndexedDBToExcel = function() {
+    if (!idb) {
+        alert("데이터베이스가 연결되지 않았습니다.");
+        return;
+    }
+
+    try {
+        const transaction = idb.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const request = store.getAll();
+
+        request.onsuccess = function(e) {
+            const items = e.target.result || [];
+            if (items.length === 0) {
+                alert("다운로드할 데이터가 없습니다.");
+                return;
+            }
+
+            // 1. 엑셀 파일의 맨 윗줄 제목 칸 정의 (한글 깨짐 방지 처리 포함)
+            let csvContent = "\uFEFF"; // UTF-8 BOM 선언 (엑셀에서 한글 안 깨지게 잡는 특수 기호)
+            csvContent += "이름,연락처,인원,예약시간,결제상태,생성일자,고유ID\n";
+
+            // 2. 데이터를 한 줄씩 콤마(,)로 분리하여 표 형태로 조립
+            items.forEach(item => {
+                // 만약 item.content 안에 상세 객체가 들어있다면 그 값을 쓰고, 없으면 겉에 있는 값을 추출
+                let name = item.name || "";
+                let phone = item.phone || "";
+                let count = item.count || "";
+                let time = item.time || "";
+                let status = item.status || "";
+                let createdAt = item.createdAt || "";
+                let id = item.id || "";
+
+                // 만약 content 내부가 뭉쳐서 들어온 경우를 대비한 안전 장치
+                if (item.content && typeof item.content === 'object') {
+                    name = item.content.name || name;
+                    phone = item.content.phone || phone;
+                    count = item.content.count || count;
+                    time = item.content.time || time;
+                    status = item.content.status || status;
+                    createdAt = item.content.createdAt || createdAt;
+                } else if (item.content && String(item.content).startsWith("{")) {
+                    try {
+                        const parsed = JSON.parse(item.content);
+                        name = parsed.name || name;
+                        phone = parsed.phone || phone;
+                        count = parsed.count || count;
+                        time = parsed.time || time;
+                        status = parsed.status || status;
+                        createdAt = parsed.createdAt || createdAt;
+                    } catch(e) {}
+                }
+
+                // 한 줄의 데이터 완성 (쉼표 간격)
+                const row = `"${name}","${phone}","${count}","${time}","${status}","${createdAt}","${id}"\n`;
+                csvContent += row;
+            });
+
+            // 3. 브라우저에서 파일로 강제 다운로드 시키기
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `알지골프_예약창고_백업_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        request.onerror = function() {
+            alert("데이터를 읽어오지 못했습니다.");
+        };
+    } catch (err) {
+        alert("창고 접근 에러: " + err.message);
+    }
+}; 
     </script>
 </body>
 </html>
