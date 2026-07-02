@@ -24,8 +24,8 @@
     <div style="margin-top: 30px; margin-bottom: 30px; background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
     <h3 style="margin-top:0; color: #333;">📦 브라우저 창고(IndexedDB) 저장 데이터 실시간 조회</h3>
     <button id="btn-view-db" onclick="viewIndexedDBData()" style="padding: 8px 16px; background-color: #008cba; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-        🔍 창고 데이터 전부 펼쳐보기
-    </button>
+    🔍 창고 데이터 전부 펼쳐보기
+</button>
     
     <div style="margin-top: 15px; overflow-x: auto;">
         <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
@@ -323,7 +323,8 @@ https://docs.google.com/spreadsheets/d/1oGBppYTqYvgRgRlDo5Bv400bbKvEO-Ur5rQWreUp
 
 // 🌟 2. 잘못 저장된 로컬 데이터를 개별적으로 지울 수 있는 수동 삭제 함수
 // 🌟 [수정본] 구글 시트 복원 데이터와 기존 수동 입력 데이터를 모두 완벽하게 인식하는 화면 출력 함수
-window.viewIndexedDBData = function() {
+// 🌟 브라우저가 무조건 인식하도록 수정한 안전한 조회 함수
+function viewIndexedDBData() {
     const tbody = document.getElementById("db-list-tbody");
     
     if (!idb) {
@@ -348,38 +349,31 @@ window.viewIndexedDBData = function() {
             items.forEach(item => {
                 const tr = document.createElement("tr");
                 
-                // 1. 이름 추출 (content 내부 객체 확인 후 없으면 겉면의 name 확인)
                 let currentName = item.name || "무명자료";
                 if (item.content && typeof item.content === 'object') {
                     currentName = item.content.name || currentName;
                 }
 
-                // 2. 상세 내용 추출 및 예쁘게 정리
                 let displayContent = "";
                 if (item.content && typeof item.content === 'object') {
-                    // 수동 입력이나 복원 데이터 구조가 객체일 때 보기 좋게 정제
                     const c = item.content;
                     displayContent = `📞연락처: ${c.phone || '-'} | 👥인원: ${c.count || '-'} | ⏰시간: ${c.time || '-'} | 💳상태: ${c.status || '-'}`;
                 } else if (item.phone || item.time) {
-                    // 구글시트에서 직출력된 구조일 때
                     displayContent = `📞연락처: ${item.phone || '-'} | 👥인원: ${item.count || '-'} | ⏰시간: ${item.time || '-'} | 💳상태: ${item.status || '-'}`;
                 } else {
                     displayContent = String(item.content || JSON.stringify(item));
                 }
 
-                // 이름(Key) 칸 생성
                 const tdName = document.createElement("td");
                 tdName.style.padding = "10px";
                 tdName.style.fontWeight = "bold";
                 tdName.innerText = currentName;
 
-                // 상세 내용 칸 생성
                 const tdContent = document.createElement("td");
                 tdContent.style.padding = "10px";
                 tdContent.style.color = "#333";
                 tdContent.innerText = displayContent;
 
-                // 관리(삭제) 칸 생성
                 const tdAction = document.createElement("td");
                 tdAction.style.padding = "10px";
                 tdAction.style.textAlign = "center";
@@ -398,7 +392,11 @@ window.viewIndexedDBData = function() {
     } catch (err) {
         alert("reservations 창고에 접근할 수 없습니다: " + err.message);
     }
-};
+}
+
+// 🌟 혹시 모를 외부 호출에 대비해 윈도우 객체에도 매칭
+window.viewIndexedDBData = viewIndexedDBData;
+        
         window.exportAndOpenGoogleSheet = async function() {
     if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
     
