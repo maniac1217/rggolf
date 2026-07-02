@@ -322,109 +322,83 @@
 https://docs.google.com/spreadsheets/d/1oGBppYTqYvgRgRlDo5Bv400bbKvEO-Ur5rQWreUpZks/edit?gid=0#gid=0
 
 // 🌟 2. 잘못 저장된 로컬 데이터를 개별적으로 지울 수 있는 수동 삭제 함수
-window.deleteIndexedDBItem = function(keyName) {
-    if (!confirm(`[${keyName}] 데이터를 브라우저 창고에서 영구 삭제하시겠습니까?\n(파이어베이스나 노션 서버 데이터는 지워지지 않습니다.)`)) {
-        return;
-    }
-
-    try {
-        const transaction = idb.transaction(["reservations"], "readwrite");
-        const store = transaction.objectStore("reservations");
-        const request = store.delete(keyName);
-
-        request.onsuccess = function() {
-            alert("로컬 창고에서 정상적으로 삭제되었습니다.");
-            window.viewIndexedDBData(); // 삭제 후 표 갱신
-            if (typeof checkDatabaseCount === "function") checkDatabaseCount(); // 상단 대기 개수 알림 갱신
-        };
-
-        request.onerror = function() {
-            alert("데이터 삭제에 실패했습니다.");
-        };
-    } catch (err) {
-        alert("삭제 작업 중 오류 발생: " + err.message);
-    }
-};
-       // 🌟 JSON 뭉텅이 데이터를 엑셀/구글시트가 인식하는 깨끗한 표(CSV)로 변환해 다운로드하는 함수
-window.exportIndexedDBToExcel = function() {
+// 🌟 [수정본] 구글 시트 복원 데이터와 기존 수동 입력 데이터를 모두 완벽하게 인식하는 화면 출력 함수
+window.viewIndexedDBData = function() {
+    const tbody = document.getElementById("db-list-tbody");
+    
     if (!idb) {
-        alert("데이터베이스가 연결되지 않았습니다.");
+        alert("데이터베이스가 아직 연결되지 않았거나 열 수 없는 상태입니다.");
         return;
     }
 
     try {
         const transaction = idb.transaction(["reservations"], "readonly");
         const store = transaction.objectStore("reservations");
-        const request = store.getAll();
+        const request = store.getAll(); 
 
         request.onsuccess = function(e) {
             const items = e.target.result || [];
+            tbody.innerHTML = ""; 
+
             if (items.length === 0) {
-                alert("다운로드할 데이터가 없습니다.");
+                tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
                 return;
             }
 
-            // 1. 엑셀 파일의 맨 윗줄 제목 칸 정의 (한글 깨짐 방지 처리 포함)
-            let csvContent = "\uFEFF"; // UTF-8 BOM 선언 (엑셀에서 한글 안 깨지게 잡는 특수 기호)
-            csvContent += "이름,연락처,인원,예약시간,결제상태,생성일자,고유ID\n";
-
-            // 2. 데이터를 한 줄씩 콤마(,)로 분리하여 표 형태로 조립
             items.forEach(item => {
-                // 만약 item.content 안에 상세 객체가 들어있다면 그 값을 쓰고, 없으면 겉에 있는 값을 추출
-                let name = item.name || "";
-                let phone = item.phone || "";
-                let count = item.count || "";
-                let time = item.time || "";
-                let status = item.status || "";
-                let createdAt = item.createdAt || "";
-                let id = item.id || "";
-
-                // 만약 content 내부가 뭉쳐서 들어온 경우를 대비한 안전 장치
+                const tr = document.createElement("tr");
+                
+                // 1. 이름 추출 (content 내부 객체 확인 후 없으면 겉면의 name 확인)
+                let currentName = item.name || "무명자료";
                 if (item.content && typeof item.content === 'object') {
-                    name = item.content.name || name;
-                    phone = item.content.phone || phone;
-                    count = item.content.count || count;
-                    time = item.content.time || time;
-                    status = item.content.status || status;
-                    createdAt = item.content.createdAt || createdAt;
-                } else if (item.content && String(item.content).startsWith("{")) {
-                    try {
-                        const parsed = JSON.parse(item.content);
-                        name = parsed.name || name;
-                        phone = parsed.phone || phone;
-                        count = parsed.count || count;
-                        time = parsed.time || time;
-                        status = parsed.status || status;
-                        createdAt = parsed.createdAt || createdAt;
-                    } catch(e) {}
+                    currentName = item.content.name || currentName;
                 }
 
-                // 한 줄의 데이터 완성 (쉼표 간격)
-                const row = `"${name}","${phone}","${count}","${time}","${status}","${createdAt}","${id}"\n`;
-                csvContent += row;
-            });
+                // 2. 상세 내용 추출 및 예쁘게 정리
+                let displayContent = "";
+                if (item.content && typeof item.content === 'object') {
+                    // 수동 입력이나 복원 데이터 구조가 객체일 때 보기 좋게 정제
+                    const c = item.content;
+                    displayContent = `📞연락처: ${c.phone || '-'} | 👥인원: ${c.count || '-'} | ⏰시간: ${c.time || '-'} | 💳상태: ${c.status || '-'}`;
+                } else if (item.phone || item.time) {
+                    // 구글시트에서 직출력된 구조일 때
+                    displayContent = `📞연락처: ${item.phone || '-'} | 👥인원: ${item.count || '-'} | ⏰시간: ${item.time || '-'} | 💳상태: ${item.status || '-'}`;
+                } else {
+                    displayContent = String(item.content || JSON.stringify(item));
+                }
 
-            // 3. 브라우저에서 파일로 강제 다운로드 시키기
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            
-            link.setAttribute("href", url);
-            link.setAttribute("download", `알지골프_예약창고_백업_${new Date().toISOString().slice(0,10)}.csv`);
-            link.style.visibility = 'hidden';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+                // 이름(Key) 칸 생성
+                const tdName = document.createElement("td");
+                tdName.style.padding = "10px";
+                tdName.style.fontWeight = "bold";
+                tdName.innerText = currentName;
+
+                // 상세 내용 칸 생성
+                const tdContent = document.createElement("td");
+                tdContent.style.padding = "10px";
+                tdContent.style.color = "#333";
+                tdContent.innerText = displayContent;
+
+                // 관리(삭제) 칸 생성
+                const tdAction = document.createElement("td");
+                tdAction.style.padding = "10px";
+                tdAction.style.textAlign = "center";
+                tdAction.innerHTML = `<button onclick="deleteIndexedDBItem('${item.name}')" style="padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">삭제</button>`;
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdContent);
+                tr.appendChild(tdAction);
+                tbody.appendChild(tr);
+            });
         };
 
         request.onerror = function() {
-            alert("데이터를 읽어오지 못했습니다.");
+            alert("창고 데이터를 읽어오는 과정에서 에러가 발생했습니다.");
         };
     } catch (err) {
-        alert("창고 접근 에러: " + err.message);
+        alert("reservations 창고에 접근할 수 없습니다: " + err.message);
     }
-}; 
+};
         window.exportAndOpenGoogleSheet = async function() {
     if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
     
