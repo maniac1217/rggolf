@@ -208,7 +208,7 @@
         }
 
         async function sendToNotion(name, content) {
-            const googleScriptUrl = "https://script.google.com/macros/s/AKfycby2kd_vP-Z8VX3GewaOjzLf20JfCQEY-PCeZHbT8Dd5heP-GJI4ZuD36QPaW4yMzH8fNw/exec";
+            const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyHF4hbbhuoMvahNrdLAnBoupcy0WVFYddTk94OG96_Hx21zHQ58yoHsJ7v3wWrojPv7A/exec";
 
             const payload = {
                 parent: { database_id: DATABASE_ID },
@@ -481,7 +481,7 @@ window.exportIndexedDBToExcel = function() {
     if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
     
     // ⚠️ 용섭님의 최신 구글 스크립트 배포 URL 주소를 적어주세요!
-    const googleScriptUrl = "https://script.google.com/macros/s/AKfycby2kd_vP-Z8VX3GewaOjzLf20JfCQEY-PCeZHbT8Dd5heP-GJI4ZuD36QPaW4yMzH8fNw/exec";
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyHF4hbbhuoMvahNrdLAnBoupcy0WVFYddTk94OG96_Hx21zHQ58yoHsJ7v3wWrojPv7A/exec";
 
     try {
         const transaction = idb.transaction(["reservations"], "readonly");
