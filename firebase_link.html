@@ -324,75 +324,75 @@ https://docs.google.com/spreadsheets/d/1oGBppYTqYvgRgRlDo5Bv400bbKvEO-Ur5rQWreUp
 // 🌟 2. 잘못 저장된 로컬 데이터를 개별적으로 지울 수 있는 수동 삭제 함수
 // 🌟 [수정본] 구글 시트 복원 데이터와 기존 수동 입력 데이터를 모두 완벽하게 인식하는 화면 출력 함수
 // 🌟 브라우저가 무조건 인식하도록 수정한 안전한 조회 함수
-function viewIndexedDBData() {
-    const tbody = document.getElementById("db-list-tbody");
-    
-    if (!idb) {
-        alert("데이터베이스가 아직 연결되지 않았거나 열 수 없는 상태입니다.");
-        return;
-    }
+window.viewIndexedDBData = function() {
+        const tbody = document.getElementById("db-list-tbody");
+        
+        if (!idb) {
+            alert("데이터베이스가 아직 연결되지 않았거나 열 수 없는 상태입니다.");
+            return;
+        }
 
-    try {
-        const transaction = idb.transaction(["reservations"], "readonly");
-        const store = transaction.objectStore("reservations");
-        const request = store.getAll(); 
+        try {
+            const transaction = idb.transaction(["reservations"], "readonly");
+            const store = transaction.objectStore("reservations");
+            const request = store.getAll(); 
 
-        request.onsuccess = function(e) {
-            const items = e.target.result || [];
-            tbody.innerHTML = ""; 
+            request.onsuccess = function(e) {
+                const items = e.target.result || [];
+                tbody.innerHTML = ""; 
 
-            if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
-                return;
-            }
-
-            items.forEach(item => {
-                const tr = document.createElement("tr");
-                
-                let currentName = item.name || "무명자료";
-                if (item.content && typeof item.content === 'object') {
-                    currentName = item.content.name || currentName;
+                if (items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
+                    return;
                 }
 
-                let displayContent = "";
-                if (item.content && typeof item.content === 'object') {
-                    const c = item.content;
-                    displayContent = `📞연락처: ${c.phone || '-'} | 👥인원: ${c.count || '-'} | ⏰시간: ${c.time || '-'} | 💳상태: ${c.status || '-'}`;
-                } else if (item.phone || item.time) {
-                    displayContent = `📞연락처: ${item.phone || '-'} | 👥인원: ${item.count || '-'} | ⏰시간: ${item.time || '-'} | 💳상태: ${item.status || '-'}`;
-                } else {
-                    displayContent = String(item.content || JSON.stringify(item));
-                }
+                items.forEach(item => {
+                    const tr = document.createElement("tr");
+                    
+                    let currentName = item.name || "무명자료";
+                    if (item.content && typeof item.content === 'object') {
+                        currentName = item.content.name || currentName;
+                    }
 
-                const tdName = document.createElement("td");
-                tdName.style.padding = "10px";
-                tdName.style.fontWeight = "bold";
-                tdName.innerText = currentName;
+                    let displayContent = "";
+                    if (item.content && typeof item.content === 'object') {
+                        const c = item.content;
+                        displayContent = `📞연락처: ${c.phone || '-'} | 👥인원: ${c.count || '-'} | ⏰시간: ${c.time || '-'} | 💳상태: ${c.status || '-'}`;
+                    } else if (item.phone || item.time) {
+                        displayContent = `📞연락처: ${item.phone || '-'} | 👥인원: ${item.count || '-'} | ⏰시간: ${item.time || '-'} | 💳상태: ${item.status || '-'}`;
+                    } else {
+                        displayContent = String(item.content || JSON.stringify(item));
+                    }
 
-                const tdContent = document.createElement("td");
-                tdContent.style.padding = "10px";
-                tdContent.style.color = "#333";
-                tdContent.innerText = displayContent;
+                    const tdName = document.createElement("td");
+                    tdName.style.padding = "10px";
+                    tdName.style.fontWeight = "bold";
+                    tdName.innerText = currentName;
 
-                const tdAction = document.createElement("td");
-                tdAction.style.padding = "10px";
-                tdAction.style.textAlign = "center";
-                tdAction.innerHTML = `<button onclick="deleteIndexedDBItem('${item.name}')" style="padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">삭제</button>`;
+                    const tdContent = document.createElement("td");
+                    tdContent.style.padding = "10px";
+                    tdContent.style.color = "#333";
+                    tdContent.innerText = displayContent;
 
-                tr.appendChild(tdName);
-                tr.appendChild(tdContent);
-                tr.appendChild(tdAction);
-                tbody.appendChild(tr);
-            });
-        };
+                    const tdAction = document.createElement("td");
+                    tdAction.style.padding = "10px";
+                    tdAction.style.textAlign = "center";
+                    tdAction.innerHTML = `<button onclick="deleteIndexedDBItem('${item.name}')" style="padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">삭제</button>`;
 
-        request.onerror = function() {
-            alert("창고 데이터를 읽어오는 과정에서 에러가 발생했습니다.");
-        };
-    } catch (err) {
-        alert("reservations 창고에 접근할 수 없습니다: " + err.message);
-    }
-}
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdContent);
+                    tr.appendChild(tdAction);
+                    tbody.appendChild(tr);
+                });
+            };
+
+            request.onerror = function() {
+                alert("창고 데이터를 읽어오는 과정에서 에러가 발생했습니다.");
+            };
+        } catch (err) {
+            alert("reservations 창고에 접근할 수 없습니다: " + err.message);
+        }
+    };
 
 // 🌟 혹시 모를 외부 호출에 대비해 윈도우 객체에도 매칭
 window.viewIndexedDBData = viewIndexedDBData;
