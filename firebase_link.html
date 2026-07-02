@@ -216,7 +216,7 @@
         }
 
         async function sendToNotion(name, content) {
-            const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyHF4hbbhuoMvahNrdLAnBoupcy0WVFYddTk94OG96_Hx21zHQ58yoHsJ7v3wWrojPv7A/exec";
+            const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
 
             const payload = {
                 parent: { database_id: DATABASE_ID },
@@ -489,7 +489,7 @@ window.exportIndexedDBToExcel = function() {
     if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
     
     // ⚠️ 용섭님의 최신 구글 스크립트 배포 URL 주소를 적어주세요!
-    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyHF4hbbhuoMvahNrdLAnBoupcy0WVFYddTk94OG96_Hx21zHQ58yoHsJ7v3wWrojPv7A/exec";
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
 
     try {
         const transaction = idb.transaction(["reservations"], "readonly");
@@ -546,7 +546,7 @@ window.exportIndexedDBToExcel = function() {
     if (!idb) { return alert("데이터베이스 창고 연결을 확인할 수 없습니다."); }
     
     // ⚠️ 용섭님의 최신 구글 배포 주소를 그대로 유지해 주세요
-    const googleScriptUrl = "용섭님의_최신_구글_스크립트_주소_입력";
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
 
     if (!confirm("주의! 구글 시트 데이터로 브라우저 창고(IndexedDB)에 강제 덮어쓰기를 진행하시겠습니까?")) { return; }
 
