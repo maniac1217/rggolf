@@ -481,7 +481,7 @@ window.exportIndexedDBToExcel = function() {
     if (!idb) { return alert("데이터베이스가 연결되지 않았습니다."); }
     
     // ⚠️ 용섭님의 최신 구글 스크립트 배포 URL 주소를 적어주세요!
-    const googleScriptUrl = "여기에_1단계에서_새로_배포한_구글_주소_입력";
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycby2kd_vP-Z8VX3GewaOjzLf20JfCQEY-PCeZHbT8Dd5heP-GJI4ZuD36QPaW4yMzH8fNw/exec";
 
     try {
         const transaction = idb.transaction(["reservations"], "readonly");
