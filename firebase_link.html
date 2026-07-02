@@ -319,67 +319,7 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
         // 🌟 1. IndexedDB 내부 창고를 싹 긁어서 화면 표(Table)에 채워 넣는 함수
-window.viewIndexedDBData = function() {
-    const tbody = document.getElementById("db-list-tbody");
-    
-    // 이 파일 상단에서 초기화된 idb(IndexedDB 객체)가 있는지 검증
-    if (!idb) {
-        alert("데이터베이스가 아직 연결되지 않았거나 열 수 없는 상태입니다.");
-        return;
-    }
-
-    try {
-        const transaction = idb.transaction(["reservations"], "readonly");
-        const store = transaction.objectStore("reservations");
-        const request = store.getAll(); // 모든 데이터 통째로 가져오기
-
-        request.onsuccess = function(e) {
-            const items = e.target.result || [];
-            tbody.innerHTML = ""; // 기존 글씨 초기화
-
-            if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="padding:15px; text-align:center; color:red;">현재 브라우저 창고에 저장된 데이터가 0개입니다.</td></tr>`;
-                return;
-            }
-
-            // 데이터를 한 줄씩 표에 추가
-            items.forEach(item => {
-                const tr = document.createElement("tr");
-                
-                // 이름(Key) 칸
-                const tdName = document.createElement("td");
-                tdName.style.padding = "10px";
-                tdName.style.fontWeight = "bold";
-                tdName.innerText = item.name || "무명자료";
-
-                // 상세 내용 칸 (객체 형태면 예쁘게 글자로 변환)
-                const tdContent = document.createElement("td");
-                tdContent.style.padding = "10px";
-                tdContent.style.color = "#555";
-                tdContent.innerText = typeof item.content === 'object' ? JSON.stringify(item.content) : String(item.content || JSON.stringify(item));
-
-                // 관리(삭제) 칸
-                const tdAction = document.createElement("td");
-                tdAction.style.padding = "10px";
-                tdAction.style.textAlign = "center";
-                tdAction.innerHTML = `<button onclick="deleteIndexedDBItem('${item.name}')" style="padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">삭제</button>`;
-
-                tr.appendChild(tdName);
-                tr.appendChild(tdContent);
-                tr.appendChild(tdAction);
-                tbody.appendChild(tr);
-            });
-            
-            console.log("IndexedDB 데이터 화면 표출 성공:", items.length, "건");
-        };
-
-        request.onerror = function() {
-            alert("창고 데이터를 읽어오는 과정에서 에러가 발생했습니다.");
-        };
-    } catch (err) {
-        alert("reservations 창고에 접근할 수 없습니다: " + err.message);
-    }
-};
+https://docs.google.com/spreadsheets/d/1oGBppYTqYvgRgRlDo5Bv400bbKvEO-Ur5rQWreUpZks/edit?gid=0#gid=0
 
 // 🌟 2. 잘못 저장된 로컬 데이터를 개별적으로 지울 수 있는 수동 삭제 함수
 window.deleteIndexedDBItem = function(keyName) {
