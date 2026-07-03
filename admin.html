@@ -138,6 +138,19 @@
             document.getElementById('adminPassword').value = "";
         }
     };
+    // 📡 이 코드를 자바스크립트 시작 구역(<script> 태그 바로 아래 등)에 배치합니다.
+   window.addEventListener("storage", (event) => {
+    if (event.key === "db_updated_signal") {
+        console.log("🔄 데이터베이스 복원 완료 감지: 관리자 화면 갱신 시작");
+        try {
+            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
+            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
+        } catch (e) {
+            console.error("화면 갱신 중 오류 발생, 강제 새로고침합니다.", e);
+            location.reload(); 
+        }
+    }
+});
     // 📡 [실시간 창고 감지 센서] firebase_link.html에서 복원/수정 시 admin.html 자동 동기화
    window.addEventListener("storage", (event) => {
     // 특정 신호가 오거나 로컬스토리지에 변화가 생기면 화면을 리로드합니다.
@@ -152,15 +165,15 @@
 });
 
 // 브라우저 데이터베이스 창고(IndexedDB) 자체의 변화를 직접 감지하는 센서
-if ('indexedDB' in window) {
-    const channel = new BroadcastChannel('rg_golf_db_channel');
-    channel.onmessage = (event) => {
-        if (event.data === 'refresh_all') {
-            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
-            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
-        }
-    };
-}
+//if ('indexedDB' in window) {
+//    const channel = new BroadcastChannel('rg_golf_db_channel');
+//    channel.onmessage = (event) => {
+//        if (event.data === 'refresh_all') {
+//            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
+//            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
+//        }
+//    };
+//}
 
     function initDates() {
         const today = new Date();
