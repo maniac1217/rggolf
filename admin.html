@@ -138,6 +138,29 @@
             document.getElementById('adminPassword').value = "";
         }
     };
+    // 📡 [실시간 창고 감지 센서] firebase_link.html에서 복원/수정 시 admin.html 자동 동기화
+   window.addEventListener("storage", (event) => {
+    // 특정 신호가 오거나 로컬스토리지에 변화가 생기면 화면을 리로드합니다.
+    if (event.key === "db_updated_signal") {
+        console.log("🔄 창고 업데이트 감지: 관리자 화면을 리프레시합니다.");
+        // admin.html 내부에 카운트와 리스트를 그리는 함수가 있다면 각각 실행해 줍니다.
+        if (typeof checkDatabaseCount === "function") checkDatabaseCount();
+        if (typeof viewIndexedDBData === "function") viewIndexedDBData();
+        // 만약 위 함수명이 다르다면, 아예 깔끔하게 페이지를 새로고침 처리합니다.
+        // location.reload(); 
+    }
+});
+
+// 브라우저 데이터베이스 창고(IndexedDB) 자체의 변화를 직접 감지하는 센서
+if ('indexedDB' in window) {
+    const channel = new BroadcastChannel('rg_golf_db_channel');
+    channel.onmessage = (event) => {
+        if (event.data === 'refresh_all') {
+            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
+            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
+        }
+    };
+}
 
     function initDates() {
         const today = new Date();
