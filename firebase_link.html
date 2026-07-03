@@ -251,76 +251,93 @@
         }
         document.getElementById("btn-google-open").addEventListener("click", exportAndOpenGoogleSheet);
 
-        // 📥 구글 시트 데이터 프로그램으로 재복원 기능 (필드 매칭 전폭 강화형)
-        async function importGoogleSheetToProgram() {
-            const sheetUrl = document.getElementById("input-sheet-url").value.trim();
-            if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
+       async function importGoogleSheetToProgram() {
+    const sheetUrl = document.getElementById("input-sheet-url").value.trim();
+    if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
+    if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
 
-            if (!confirm("주의! 구글 시트 데이터로 브라우저 창고(IndexedDB)에 강제 덮어쓰기를 진행하시겠습니까?")) return;
+    if (!confirm("주의! 구글 시트 데이터로 브라우저 창고(IndexedDB)에 강제 덮어쓰기를 진행하시겠습니까?")) return;
 
-            const importBtn = document.getElementById("btn-import-sheet");
-            try {
-                importBtn.innerText = "⏳ 구글 시트 분석 및 강제 주입 중...";
-                importBtn.disabled = true;
+    const importBtn = document.getElementById("btn-import-sheet");
+    try {
+        importBtn.innerText = "⏳ 구글 시트 분석 및 강제 주입 중...";
+        importBtn.disabled = true;
 
-                const response = await fetch(googleScriptUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
-                });
+        const response = await fetch(googleScriptUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
+        });
 
-                const resultJson = JSON.parse(await response.text());
-                if (!resultJson.success || !resultJson.data) {
-                    throw new Error(resultJson.message || "구글 시트 데이터를 읽지 못했습니다.");
-                }
-
-                const rows = resultJson.data;
-                const transaction = idb.transaction(["reservations"], "readwrite");
-                const store = transaction.objectStore("reservations");
-
-                let importCount = 0;
-
-                rows.forEach(row => {
-                    let finalName = row.name || row.Name || row["이름"] || row.id || "무명예약자";
-                    let finalPhone = row.phone || row.Phone || row["연락처"] || row["전화번호"] || "-";
-                    let finalCount = row.count || row.Count || row["인원"] || row["인원수"] || "-";
-                    let finalTime = row.time || row.Time || row["시간"] || row["예약시간"] || "-";
-                    let finalStatus = row.status || row.Status || row["상태"] || row["결제상태"] || "-";
-                    let finalCreatedAt = row.createdAt || row.CreatedAt || row["등록일"] || new Date().toISOString();
-                    let finalId = row.id || row.Id || row["아이디"] || "ID_" + Math.floor(Math.random() * 100000);
-
-                    finalName = String(finalName).trim();
-
-                    if (finalName) {
-                        store.put({
-                            name: finalName,
-                            phone: finalPhone,
-                            count: finalCount,
-                            time: finalTime,
-                            status: finalStatus,
-                            createdAt: finalCreatedAt,
-                            id: finalId,
-                            content: { name: finalName, phone: finalPhone, count: finalCount, time: finalTime, status: finalStatus, createdAt: finalCreatedAt }
-                        });
-                        importCount++;
-                    }
-                });
-
-                transaction.oncomplete = function() {
-                    alert(`🎉 복원 완수! 구글 시트로부터 총 [${importCount}개]의 예약을 가져와 브라우저 창고에 완벽 이식했습니다.`);
-                    document.getElementById("input-sheet-url").value = "";
-                    viewIndexedDBData();
-                    checkDatabaseCount();
-                };
-            } catch (err) {
-                alert("구글 시트 가져오기 실패: " + err.message);
-            } finally {
-                importBtn.innerText = "🔄 자료 덮어쓰기 복원";
-                importBtn.disabled = false;
-            }
+        const resultJson = JSON.parse(await response.text());
+        if (!resultJson.success || !resultJson.data) {
+            throw new Error(resultJson.message || "구글 시트 데이터를 읽지 못했습니다.");
         }
-        document.getElementById("btn-import-sheet").addEventListener("click", importGoogleSheetToProgram);
+
+        const rows = resultJson.data;
+        const transaction = idb.transaction(["reservations"], "readwrite");
+        const store = transaction.objectStore("reservations");
+
+        let importCount = 0;
+
+        rows.forEach(row => {
+            // 구글 시트에서 넘어온 행 데이터가 만약 content로 또 감싸져 있는 경우를 대비한 안전망 방어코드
+            let source = (row.content && typeof row.content === 'object') ? row.content : row;
+
+            let finalName = source.name || source.Name || source["이름"] || source.id || row.name || "무명예약자";
+            let finalPhone = source.phone || source.Phone || source["연락처"] || source["전화번호"] || "-";
+            let finalCount = source.count || source.Count || source["인원"] || source["인원수"] || "-";
+            let finalTime = source.time || source.Time || source["시간"] || source["예약시간"] || "-";
+            let finalStatus = source.status || source.Status || source["상태"] || source["결제상태"] || "-";
+            let finalCreatedAt = source.createdAt || source.CreatedAt || source["등록일"] || new Date().toISOString();
+            let finalId = source.id || source.Id || source["아이디"] || row.id || row.Id || "ID_" + Math.floor(Math.random() * 100000);
+
+            finalName = String(finalName).trim();
+            finalId = String(finalId).trim(); // ID 식별자 안전성 확보
+
+            if (finalName) {
+                // 🛠️ [핵심 버그 수정]: put 명령어의 두 번째 인자값으로 finalId(Key)를 확실히 전달합니다.
+                store.put({
+                    name: finalName,
+                    phone: finalPhone,
+                    count: finalCount,
+                    time: finalTime,
+                    status: finalStatus,
+                    createdAt: finalCreatedAt,
+                    id: finalId,
+                    content: { name: finalName, phone: finalPhone, count: finalCount, time: finalTime, status: finalStatus, createdAt: finalCreatedAt }
+                }, finalId); 
+                
+                importCount++;
+            }
+        });
+
+        // 📝 DB 입력 트랜잭션이 물리적으로 완수되었을 때 실행되는 완료 구역
+        transaction.oncomplete = function() {
+            alert(`🎉 총 ${importCount}건의 자료 복원을 완수하였습니다!`);
+            document.getElementById("input-sheet-url").value = "";
+
+            // 📡 [신호탄 발사] admin.html 관리자 화면에 새로고침 방송을 송출합니다.
+            localStorage.setItem("db_updated_signal", Date.now());
+
+            // 현재 화면에서도 리스트가 있다면 즉시 리프레시 처리
+            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
+            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
+        };
+
+        transaction.onerror = function(event) {
+            console.error("❌ DB 트랜잭션 도중 오류 발생:", event.target.error);
+            alert("DB 저장 중 오류가 발생했습니다: " + event.target.error.message);
+        };
+
+    } catch (error) {
+        console.error("❌ 복원 처리 실패:", error);
+        alert("오류가 발생했습니다: " + error.message);
+    } finally {
+        importBtn.innerText = "🔄 구글시트에서 강제복원";
+        importBtn.disabled = false;
+    }
+}
 
         // 창고 기록용 편의 함수들
         function saveToNotionSentHistory(name) {
