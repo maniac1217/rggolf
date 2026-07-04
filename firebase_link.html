@@ -281,37 +281,52 @@
         let importCount = 0;
 
         rows.forEach(row => {
-            // 구글 시트에서 넘어온 행 데이터가 만약 content로 또 감싸져 있는 경우를 대비한 안전망 방어코드
+            // 구글 시트 백업 구조 방어 코드
             let source = (row.content && typeof row.content === 'object') ? row.content : row;
 
             let finalName = source.name || source.Name || source["이름"] || source.id || row.name || "무명예약자";
             let finalPhone = source.phone || source.Phone || source["연락처"] || source["전화번호"] || "-";
-            let finalCount = source.count || source.Count || source["인원"] || source["인원수"] || "-";
+            let finalCount = source.count || source.Count || source["인원"] || source["인원수"] || "0";
             let finalTime = source.time || source.Time || source["시간"] || source["예약시간"] || "-";
-            let finalStatus = source.status || source.Status || source["상태"] || source["결제상태"] || "-";
+            let finalStatus = source.status || source.Status || source["상태"] || source["결제상태"] || "대기";
             let finalCreatedAt = source.createdAt || source.CreatedAt || source["등록일"] || new Date().toISOString();
             let finalId = source.id || source.Id || source["아이디"] || row.id || row.Id || "ID_" + Math.floor(Math.random() * 100000);
 
+            // 🛠️ [정밀 튜닝] 시스템 자동 부여 규격과 똑같이 데이터 형식을 복원합니다.
             finalName = String(finalName).trim();
-            finalId = String(finalId).trim(); // ID 식별자 안전성 확보
+            finalPhone = String(finalPhone).replace(/[^0-9]/g, ''); // 숫자만 추출
+            
+            // 인원수 합계를 위해 "3명" 또는 "3"에서 숫자만 추출해 진짜 '숫자형(Number)'으로 변환
+            let numericCount = parseInt(String(finalCount).replace(/[^0-9]/g, '')) || 0; 
+            finalCount = numericCount + "명"; // 시스템 규격에 맞춤 ("3명")
 
-            if (finalName) {
-                // 🛠️ [핵심 버그 수정]: put 명령어의 두 번째 인자값으로 finalId(Key)를 확실히 전달합니다.
-                store.put({
+            // ⚠️ [가장 중요] admin.html이 리스트를 정렬할 때 ID 기반 또는 정렬 필드를 사용하므로 구조를 완벽 일치시킵니다.
+            const saveObject = {
+                id: String(finalId).trim(),
+                name: finalName,
+                phone: finalPhone,
+                count: finalCount,
+                numericCount: numericCount, // 전체 합계 계산용 안전장치 추가
+                time: finalTime,
+                status: finalStatus,
+                createdAt: finalCreatedAt,
+                content: {
+                    id: String(finalId).trim(),
                     name: finalName,
                     phone: finalPhone,
                     count: finalCount,
                     time: finalTime,
                     status: finalStatus,
-                    createdAt: finalCreatedAt,
-                    id: finalId,
-                    content: { name: finalName, phone: finalPhone, count: finalCount, time: finalTime, status: finalStatus, createdAt: finalCreatedAt }
-                }, finalId); 
-                
+                    createdAt: finalCreatedAt
+                }
+            };
+
+            if (finalName) {
+                // 시스템이 자동으로 부여해서 관리하는 키(finalId) 위치와 내부 id 속성을 완벽히 일치시켜 주입
+                store.put(saveObject, saveObject.id); 
                 importCount++;
             }
         });
-
         // 📝 DB 입력 트랜잭션이 물리적으로 완수되었을 때 실행되는 완료 구역
         transaction.oncomplete = function() {
             alert(`🎉 총 ${importCount}건의 자료 복원을 완수하였습니다!`);
