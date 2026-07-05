@@ -79,7 +79,6 @@
             measurementId: "G-WT14V4N0EX"
         };
 
-        // ⚠️ 1단계에서 획득한 용섭님의 진짜 에어테이블 웹훅 주소를 아래 따옴표 안에 넣어주세요!
         const airtableWebhookUrl = "https://hooks.airtable.com/workflows/v1/genericWebhook/appM3tcHSRyeByt7v/wflwEn5fcJU6KYc96/wtrSa5WYr8NP8o20f";
         const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
         // =====================================================
@@ -93,7 +92,6 @@
 
         let idb = null;
 
-        // 🌟 [안전장치 1] 에러 방지를 위해 리스트 출력 함수를 최상단에 깨끗하게 정의합니다.
         function viewIndexedDBData() {
             const tbody = document.getElementById("db-list-tbody");
             if (!idb) return;
@@ -137,7 +135,7 @@
                         delBtn.style.cssText = "padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;";
                         delBtn.onclick = function() {
                             if (confirm(`[${currentName}] 데이터를 삭제하시겠습니까?`)) {
-                                idb.transaction(["reservations"], "readwrite").objectStore("reservations").delete(item.name).onsuccess = function() {
+                                idb.transaction(["reservations"], "readwrite").objectStore("reservations").delete(item.id || item.name).onsuccess = function() {
                                     alert("삭제 완료되었습니다.");
                                     viewIndexedDBData();
                                     checkDatabaseCount();
@@ -157,13 +155,12 @@
             }
         }
 
-        // DB 연결 시작
         const dbRequest = indexedDB.open("RG_Golf_DB");
 
         dbRequest.onupgradeneeded = function(e) {
             let database = e.target.result;
             if (!database.objectStoreNames.contains("reservations")) {
-                database.createObjectStore("reservations", { keyPath: "name" });
+                database.createObjectStore("reservations", { keyPath: "id" });
             }
             if (!database.objectStoreNames.contains("notion_sent")) {
                 database.createObjectStore("notion_sent", { keyPath: "name" });
@@ -174,7 +171,7 @@
             idb = e.target.result;
             setTimeout(() => { 
                 checkDatabaseCount(); 
-                viewIndexedDBData(); // 🌟 창고 열리면 즉시 화면에 자동 로드하도록 변경
+                viewIndexedDBData();
             }, 200);
         };
 
@@ -200,10 +197,9 @@
             }
         }
 
-        // 버튼 클릭 이벤트 바인딩
         document.getElementById("btn-view-db").addEventListener("click", viewIndexedDBData);
 
-        // 🌐 구글 시트로 내보내기 및 자동 오픈 기능
+        // 🌐 구글 시트로 내보내기 및 자동 오픈 기능 (완벽 복구 완료)
         async function exportAndOpenGoogleSheet() {
             if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
             try {
@@ -251,110 +247,106 @@
         }
         document.getElementById("btn-google-open").addEventListener("click", exportAndOpenGoogleSheet);
 
-       async function importGoogleSheetToProgram() {
-    const sheetUrl = document.getElementById("input-sheet-url").value.trim();
-    if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-    if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
+        // 🔄 구글시트에서 데이터 역방향 복원 덮어쓰기 엔진 (admin.html 연동 규격 대수술 버전)
+        async function importGoogleSheetToProgram() {
+            const sheetUrl = document.getElementById("input-sheet-url").value.trim();
+            if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
+            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
 
-    if (!confirm("주의! 구글 시트 데이터로 브라우저 창고(IndexedDB)에 강제 덮어쓰기를 진행하시겠습니까?")) return;
+            if (!confirm("주의! 구글 시트 데이터로 브라우저 창고(IndexedDB)에 강제 덮어쓰기를 진행하시겠습니까?")) return;
 
-    const importBtn = document.getElementById("btn-import-sheet");
-    try {
-        importBtn.innerText = "⏳ 구글 시트 분석 및 강제 주입 중...";
-        importBtn.disabled = true;
+            const importBtn = document.getElementById("btn-import-sheet");
+            try {
+                importBtn.innerText = "⏳ 구글 시트 분석 및 강제 주입 중...";
+                importBtn.disabled = true;
 
-        const response = await fetch(googleScriptUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
-        });
+                const response = await fetch(googleScriptUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
+                });
 
-        const resultJson = JSON.parse(await response.text());
-        if (!resultJson.success || !resultJson.data) {
-            throw new Error(resultJson.message || "구글 시트 데이터를 읽지 못했습니다.");
-        }
-
-        const rows = resultJson.data;
-        const transaction = idb.transaction(["reservations"], "readwrite");
-        const store = transaction.objectStore("reservations");
-
-        let importCount = 0;
-
-        rows.forEach(row => {
-            // 구글 시트 백업 구조 방어 코드
-            let source = (row.content && typeof row.content === 'object') ? row.content : row;
-
-            let finalName = source.name || source.Name || source["이름"] || source.id || row.name || "무명예약자";
-            let finalPhone = source.phone || source.Phone || source["연락처"] || source["전화번호"] || "-";
-            let finalCount = source.count || source.Count || source["인원"] || source["인원수"] || "0";
-            let finalTime = source.time || source.Time || source["시간"] || source["예약시간"] || "-";
-            let finalStatus = source.status || source.Status || source["상태"] || source["결제상태"] || "대기";
-            let finalCreatedAt = source.createdAt || source.CreatedAt || source["등록일"] || new Date().toISOString();
-            let finalId = source.id || source.Id || source["아이디"] || row.id || row.Id || "ID_" + Math.floor(Math.random() * 100000);
-
-            // 🛠️ [정밀 튜닝] 시스템 자동 부여 규격과 똑같이 데이터 형식을 복원합니다.
-            finalName = String(finalName).trim();
-            finalPhone = String(finalPhone).replace(/[^0-9]/g, ''); // 숫자만 추출
-            
-            // 인원수 합계를 위해 "3명" 또는 "3"에서 숫자만 추출해 진짜 '숫자형(Number)'으로 변환
-            let numericCount = parseInt(String(finalCount).replace(/[^0-9]/g, '')) || 0; 
-            finalCount = numericCount + "명"; // 시스템 규격에 맞춤 ("3명")
-
-            // ⚠️ [가장 중요] admin.html이 리스트를 정렬할 때 ID 기반 또는 정렬 필드를 사용하므로 구조를 완벽 일치시킵니다.
-            const saveObject = {
-                id: String(finalId).trim(),
-                name: finalName,
-                phone: finalPhone,
-                count: finalCount,
-                numericCount: numericCount, // 전체 합계 계산용 안전장치 추가
-                time: finalTime,
-                status: finalStatus,
-                createdAt: finalCreatedAt,
-                content: {
-                    id: String(finalId).trim(),
-                    name: finalName,
-                    phone: finalPhone,
-                    count: finalCount,
-                    time: finalTime,
-                    status: finalStatus,
-                    createdAt: finalCreatedAt
+                const textData = await response.text();
+                const resultJson = JSON.parse(textData);
+                
+                if (!resultJson.success || !resultJson.data) {
+                    throw new Error(resultJson.message || "구글 시트 데이터를 읽지 못했습니다.");
                 }
-            };
 
-            if (finalName) {
-                // 시스템이 자동으로 부여해서 관리하는 키(finalId) 위치와 내부 id 속성을 완벽히 일치시켜 주입
-                store.put(saveObject, saveObject.id); 
-                importCount++;
+                const rows = resultJson.data;
+                const transaction = idb.transaction(["reservations"], "readwrite");
+                const store = transaction.objectStore("reservations");
+
+                let importCount = 0;
+
+                rows.forEach(row => {
+                    let source = (row.content && typeof row.content === 'object') ? row.content : row;
+
+                    let finalName = source.name || source.Name || source["이름"] || "무명예약자";
+                    let finalPhone = source.phone || source.Phone || source["연락처"] || "-";
+                    let finalCount = source.count || source.Count || source["인원"] || "0";
+                    let finalTime = source.time || source.Time || source["시간"] || "-";
+                    let finalStatus = source.status || source.Status || source["상태"] || "대기중";
+                    let finalCreatedAt = source.createdAt || source.CreatedAt || source["등록일"] || "";
+                    let finalId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
+
+                    finalName = String(finalName).trim();
+                    finalPhone = String(finalPhone).replace(/[^0-9]/g, '');
+                    
+                    let numericCount = parseInt(String(finalCount).replace(/[^0-9]/g, '')) || 0; 
+                    finalCount = numericCount + "명";
+
+                    // ⚠️ [날짜 포맷 가드] admin.html 필터 연동 실패 차단 로직
+                    // time 필드 데이터(예: "2026-07-06 14:30")에서 "2026-07-06" 형태로 강제 동기화 추출
+                    if (finalTime && finalTime.length >= 10) {
+                        finalCreatedAt = finalTime.substring(0, 10);
+                    } else if (!finalCreatedAt || finalCreatedAt.length < 10) {
+                        finalCreatedAt = new Date().toISOString().substring(0, 10);
+                    } else {
+                        finalCreatedAt = finalCreatedAt.substring(0, 10);
+                    }
+
+                    const saveObject = {
+                        id: String(finalId).trim(),
+                        name: finalName,
+                        phone: finalPhone,
+                        count: finalCount,
+                        time: finalTime,
+                        status: finalStatus,
+                        createdAt: finalCreatedAt
+                    };
+
+                    if (finalName) {
+                        store.put(saveObject); 
+                        importCount++;
+                    }
+                });
+
+                transaction.oncomplete = function() {
+                    alert(`🎉 총 ${importCount}건의 자료 복원을 완수하였습니다!\n관리자 화면(admin.html)이 실시간 자동 동기화됩니다.`);
+                    document.getElementById("input-sheet-url").value = "";
+
+                    // 📡 [신호탄 발사] admin.html 화면 자동 리프레시 유도
+                    localStorage.setItem("db_updated_signal", Date.now());
+
+                    viewIndexedDBData();
+                    checkDatabaseCount();
+                };
+
+                transaction.onerror = function(event) {
+                    alert("DB 저장 중 오류 발생: " + event.target.error.message);
+                };
+
+            } catch (error) {
+                console.error("❌ 복원 처리 실패:", error);
+                alert("오류가 발생했습니다: " + error.message);
+            } finally {
+                importBtn.innerText = "🔄 자료 덮어쓰기 복원";
+                importBtn.disabled = false;
             }
-        });
-        // 📝 DB 입력 트랜잭션이 물리적으로 완수되었을 때 실행되는 완료 구역
-        transaction.oncomplete = function() {
-            alert(`🎉 총 ${importCount}건의 자료 복원을 완수하였습니다!`);
-            document.getElementById("input-sheet-url").value = "";
+        }
+        document.getElementById("btn-import-sheet").addEventListener("click", importGoogleSheetToProgram);
 
-            // 📡 [신호탄 발사] admin.html 관리자 화면에 새로고침 방송을 송출합니다.
-            localStorage.setItem("db_updated_signal", Date.now());
-
-            // 현재 화면에서도 리스트가 있다면 즉시 리프레시 처리
-            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
-            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
-        };
-
-        transaction.onerror = function(event) {
-            console.error("❌ DB 트랜잭션 도중 오류 발생:", event.target.error);
-            alert("DB 저장 중 오류가 발생했습니다: " + event.target.error.message);
-        };
-
-    } catch (error) {
-        console.error("❌ 복원 처리 실패:", error);
-        alert("오류가 발생했습니다: " + error.message);
-    } finally {
-        importBtn.innerText = "🔄 구글시트에서 강제복원";
-        importBtn.disabled = false;
-    }
-}
-
-        // 창고 기록용 편의 함수들
         function saveToNotionSentHistory(name) {
             try {
                 idb.transaction(["notion_sent"], "readwrite").objectStore("notion_sent").put({ name: name, sentAt: new Date().getTime() });
@@ -381,57 +373,46 @@
             });
         }
 
-        // Firebase 데이터 전송
-        async function forceSendToFirebase(rawName, rawContent) {
-            let cleanName = rawName ? String(rawName).trim() : "";
-            let cleanContent = typeof rawContent === 'object' ? JSON.stringify(rawContent) : String(rawContent).trim();
-            if (cleanName === "") cleanName = "수동입력_무명자료_" + Math.floor(Math.random() * 10000);
-            if (cleanName.includes("/")) cleanName = cleanName.replace(/\//g, "_");
-
+        async function forceSendToFirebase(rawId, record) {
             try {
-                const dbRef = ref(db, 'reservations/' + cleanName);
-                await set(dbRef, { name: cleanName, content: cleanContent, forcedSync: true, updatedAt: new Date().toISOString() });
-                printLog(`<span class="fb-success">🚀 [Firebase 강제성공] 문서명: ${cleanName}</span>`);
-                return { success: true, name: cleanName, content: cleanContent };
+                const dbRef = ref(db, 'reservations/' + rawId);
+                await set(dbRef, {
+                    name: record.name,
+                    phone: record.phone,
+                    time: record.time,
+                    count: record.count,
+                    status: record.status,
+                    createdAt: record.createdAt,
+                    forcedSync: true,
+                    updatedAt: new Date().toISOString()
+                });
+                printLog(`<span class="fb-success">🚀 [Firebase 성공] 고객명: ${record.name}</span>`);
+                return { success: true, id: rawId, name: record.name };
             } catch (error) {
-                printLog(`<span class="warn">❌ [Firebase 강제실패] 원인: ${error.message}</span>`);
-                return { success: false, name: cleanName, content: cleanContent };
+                printLog(`<span class="warn">❌ [Firebase 실패] 원인: ${error.message}</span>`);
+                return { success: false, id: rawId, name: record.name };
             }
         }
 
-        // 🚀 [노션 대안] 에어테이블 웹훅으로 바로 전달하는 튼튼한 함수
-        async function sendToAirtable(name, content) {
-            if (!airtableWebhookUrl || airtableWebhookUrl.includes("여기에_에어테이블")) {
-                printLog(`<span class="warn">❌ [Airtable] 웹훅 주소가 아직 기본값입니다. 코딩 상단에서 주소를 교체해 주세요.</span>`);
-                return false;
-            }
-
-            const payload = {
-                name: name,
-                content: typeof content === 'object' ? JSON.stringify(content) : String(content)
-            };
-
+        async function sendToAirtable(name, record) {
+            if (!airtableWebhookUrl || airtableWebhookUrl.includes("여기에_에어테이블")) return false;
+            const payload = { name: name, content: JSON.stringify(record) };
             try {
                 const response = await fetch(airtableWebhookUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "text/json" },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
-
                 if (response.ok) {
-                    printLog(`<span class="success">✅ [Airtable] 실시간 대시보드 반영 성공: ${name}</span>`);
+                    printLog(`<span class="success">✅ [Airtable] 반영 성공: ${name}</span>`);
                     return true;
-                } else {
-                    printLog(`<span class="warn">❌ [Airtable] 전송 에러 발생 (코드: ${response.status})</span>`);
-                    return false;
                 }
+                return false;
             } catch (error) {
-                printLog(`<span class="warn">❌ [Airtable] 네트워크 연결 실패: ${error.message}</span>`);
                 return false;
             }
         }
 
-        // 메인 실행 버튼 이벤트 리스너
         syncBtn.addEventListener("click", async () => {
             syncBtn.disabled = true;
             syncBtn.innerText = "⏳ 데이터 전송 진행 중...";
@@ -447,17 +428,13 @@
 
             let fbCount = 0; let airtableCount = 0;
             for (const item of localItems) {
-                const targetName = item.name || "무명자료";
-                const targetContent = item.content || "내용없음";
-
-                // 1. 파이어베이스 강제 전송
-                const fbResult = await forceSendToFirebase(targetName, targetContent);
+                const targetId = item.id || "ID_" + Math.floor(Math.random() * 100000);
+                const fbResult = await forceSendToFirebase(targetId, item);
                 if (fbResult.success) {
                     fbCount++;
-                    // 2. 에어테이블 중복 전송 방지 체크 후 발송
                     const isAlreadySent = await checkNotionHistory(fbResult.name);
                     if (!isAlreadySent) {
-                        const airtableSuccess = await sendToAirtable(fbResult.name, fbResult.content);
+                        const airtableSuccess = await sendToAirtable(fbResult.name, item);
                         if (airtableSuccess) { 
                             saveToNotionSentHistory(fbResult.name); 
                             airtableCount++; 
@@ -465,7 +442,7 @@
                     }
                 }
             }
-            printLog(`<b class="success">🏁 전송 완료! (파이어베이스: ${fbCount}개 / Airtable 신규: ${airtableCount}개)</b>`);
+            printLog(`<b class="success">🏁 전송 완료! (파이어베이스: ${fbCount}개 / Airtable: ${airtableCount}개)</b>`);
             syncBtn.disabled = false; 
             syncBtn.innerText = "🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송";
             checkDatabaseCount();
