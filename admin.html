@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-//
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -48,10 +47,14 @@
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; margin-left: auto; }
         
         .btn-back { display: block; text-align: center; margin-top: 25px; color: #95a5a6; text-decoration: none; }
+        
+        /* 기능 추가 버튼 스타일 */
+        .btn-excel { background: #1f7246; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 15px; }
+        .btn-link { background: #7f8c8d; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-//
+
 <div class="admin-wrap">
     <div id="loginBox">
         <h2>관리자 비밀번호 입력</h2>
@@ -96,17 +99,19 @@
             <div class="counter-item">총 인원 합계: <span id="totalPeople" class="total-people">0</span>명</div>
         </div>
 
+        <button onclick="exportToExcel()" class="btn-excel">📊 현재 조회된 내역 엑셀(구글시트) 내보내기</button>
+
         <div class="card-list" id="dataList"></div>
-        <button onclick="location.href='firebase_link.html'">🔥 연동 프로그램 켜기</button>
+        
+        <button onclick="location.href='firebase_link.html'" class="btn-link">🔥 연동 프로그램 켜기</button>
         <a href="index.html" class="btn-back">⬅ 메인 예약화면으로 돌아가기</a>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, push, set, get, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 용섭님의 진짜 구글 파이어베이스 서버 연결 설정 일치화
     const firebaseConfig = {
         apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
         authDomain: "rg-golf.firebaseapp.com",
@@ -121,59 +126,29 @@
     const app = initializeApp(firebaseConfig);
     const firebaseDb = getDatabase(app);
 
-    let db;
+    let currentFetchedData = []; // 현재 화면에 표시중인 데이터 저장용 변수
     const BANK_ACCOUNT = "카카오뱅크 7942-25-80482 (예금주: 한용섭)";
-    const CALL_PHONE  = "0538178800";
-//
-    // 일반 HTML 온클릭 이벤트가 자바스크립트 모듈 함수를 찾을 수 있도록 window에 바인딩
+
     window.checkPassword = function() {
         const inputPw = document.getElementById('adminPassword').value;
         if (inputPw === "1806") {
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'block';
             initDates();
-            openDBAndFetch();
+            fetchData(); // 파이어베이스에서 실시간 직접 조회
         } else {
             alert("암호가 일치하지 않습니다.");
             document.getElementById('adminPassword').value = "";
         }
     };
-    // 📡 이 코드를 자바스크립트 시작 구역(<script> 태그 바로 아래 등)에 배치합니다.
-   window.addEventListener("storage", (event) => {
-    if (event.key === "db_updated_signal") {
-        console.log("🔄 데이터베이스 복원 완료 감지: 관리자 화면 갱신 시작");
-        try {
-            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
-            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
-        } catch (e) {
-            console.error("화면 갱신 중 오류 발생, 강제 새로고침합니다.", e);
-            location.reload(); 
-        }
-    }
-});
-    // 📡 [실시간 창고 감지 센서] firebase_link.html에서 복원/수정 시 admin.html 자동 동기화
-   window.addEventListener("storage", (event) => {
-    // 특정 신호가 오거나 로컬스토리지에 변화가 생기면 화면을 리로드합니다.
-    if (event.key === "db_updated_signal") {
-        console.log("🔄 창고 업데이트 감지: 관리자 화면을 리프레시합니다.");
-        // admin.html 내부에 카운트와 리스트를 그리는 함수가 있다면 각각 실행해 줍니다.
-        if (typeof checkDatabaseCount === "function") checkDatabaseCount();
-        if (typeof viewIndexedDBData === "function") viewIndexedDBData();
-        // 만약 위 함수명이 다르다면, 아예 깔끔하게 페이지를 새로고침 처리합니다.
-        // location.reload(); 
-    }
-});
 
-// 브라우저 데이터베이스 창고(IndexedDB) 자체의 변화를 직접 감지하는 센서
-//if ('indexedDB' in window) {
-//    const channel = new BroadcastChannel('rg_golf_db_channel');
-//    channel.onmessage = (event) => {
-//        if (event.data === 'refresh_all') {
-//            if (typeof checkDatabaseCount === "function") checkDatabaseCount();
-//            if (typeof viewIndexedDBData === "function") viewIndexedDBData();
-//        }
-//    };
-//}
+    // 창고 업데이트 이벤트 발생 시 자동 동기화
+    window.addEventListener("storage", (event) => {
+        if (event.key === "db_updated_signal") {
+            console.log("🔄 데이터 동기화 신호 감지 -> 화면 갱신");
+            fetchData();
+        }
+    });
 
     function initDates() {
         const today = new Date();
@@ -185,15 +160,63 @@
         document.getElementById('insDate').valueAsDate = today; 
     }
 
-    function openDBAndFetch() {
-        const request = indexedDB.open("RG_Golf_DB", 1);
-        request.onsuccess = function(event) {
-            db = event.target.result;
-            fetchData();
-        };
-    }
+    // 📡 구글 파이어베이스 서버에서 직접 데이터를 조회 및 필터링 (복원 에러 원천 차단)
+    window.fetchData = async function() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
 
-    // 🌟 구글 실시간 데이터베이스 연동용 수동 저장 메인 엔진 교체
+        if (!start || !end) {
+            alert("조회 시작일자와 종료일자를 모두 입력해주세요.");
+            return;
+        }
+
+        try {
+            const resRef = ref(firebaseDb, 'reservations');
+            const snapshot = await get(resRef);
+            
+            if (!snapshot.exists()) {
+                currentFetchedData = [];
+                renderList([]);
+                return;
+            }
+
+            const allData = [];
+            snapshot.forEach((childSnapshot) => {
+                const key = childSnapshot.key;
+                const val = childSnapshot.val();
+                
+                // 시간 데이터에서 날짜 추출 처리 안전장치 (예: "2026-07-06 14:30" -> "2026-07-06")
+                let targetDate = val.createdAt ? val.createdAt.substring(0, 10) : "";
+                if(!targetDate && val.time) {
+                    targetDate = val.time.substring(0, 10);
+                }
+
+                allData.push({
+                    id: key, // 파이어베이스 고유 키 고정
+                    name: val.name,
+                    phone: val.phone,
+                    time: val.time,
+                    count: val.count,
+                    status: val.status,
+                    createdAt: targetDate
+                });
+            });
+
+            // 선택한 기간에 맞는 데이터 필터링
+            const filteredData = allData.filter(item => item.createdAt >= start && item.createdAt <= end);
+            // 최신 시간순 정렬
+            filteredData.sort((a, b) => new Date(b.time.replace(/-/g, '/')) - new Date(a.time.replace(/-/g, '/')));
+            
+            currentFetchedData = filteredData;
+            renderList(filteredData);
+
+        } catch (error) {
+            console.error("데이터 조회 실패:", error);
+            alert("서버에서 데이터를 가져오는 데 실패했습니다.");
+        }
+    };
+
+    // 🌟 구글 파이어베이스 수동 저장 엔진
     window.insertReservationToFirebase = async function() {
         const name = document.getElementById('insName').value.trim();
         const phone = document.getElementById('insPhone').value.trim();
@@ -207,9 +230,7 @@
             return;
         }
 
-        if(!count.includes('명')) {
-            count = count + "명";
-        }
+        if(!count.includes('명')) { count = count + "명"; }
 
         const newRecord = {
             name: name,
@@ -217,28 +238,16 @@
             time: `${dateVal} ${time}`,
             count: count,
             status: status,
-            createdAt: new Date().toISOString()
+            createdAt: dateVal
         };
 
         try {
-            // 1단계: 컴퓨터 로컬 내부 백업 저장소(IndexedDB) 기록
-            if (db) {
-                const transaction = db.transaction(["reservations"], "readwrite");
-                const store = transaction.objectStore("reservations");
-                store.add({ ...newRecord, id: Date.now(), createdAt: dateVal });
-            }
-
-            // 2단계: 에러 없는 구글 파이어베이스 클라우드로 직접 우회 전송
-            console.log("관리자 화면에서 구글 Realtime DB 전송 시작...");
             const reservationsRef = ref(firebaseDb, 'reservations');
             const newReservationRef = push(reservationsRef);
-            
             await set(newReservationRef, newRecord);
-            console.log("🎉 구글 파이어베이스 서버에 수동 데이터 저장 성공!");
 
-            alert(`[${name}]님의 예약 자료를 구글 데이터베이스에 수동 추가했습니다.`);
+            alert(`[${name}]님의 예약 자료를 구글 서버에 추가했습니다.`);
             
-            // 입력창 초기화
             document.getElementById('insName').value = "";
             document.getElementById('insPhone').value = "";
             document.getElementById('insTime').value = "";
@@ -246,31 +255,8 @@
             fetchData(); 
 
         } catch (error) {
-            console.error("구글 수동 전송 중 오류 발생:", error);
             alert("서버 전송 중 에러가 발생했습니다.");
         }
-    };
-
-    window.fetchData = function() {
-        const start = document.getElementById('startDate').value;
-        const end = document.getElementById('endDate').value;
-
-        if (!start || !end) {
-            alert("조회 시작일자와 종료일자를 모두 입력해주세요.");
-            return;
-        }
-
-        if (!db) return;
-        const transaction = db.transaction(["reservations"], "readonly");
-        const store = transaction.objectStore("reservations");
-        const getAllRequest = store.getAll();
-
-        getAllRequest.onsuccess = function() {
-            const allData = getAllRequest.result;
-            const filteredData = allData.filter(item => item.createdAt >= start && item.createdAt <= end);
-            filteredData.sort((a, b) => new Date(b.time) - new Date(a.time));
-            renderList(filteredData);
-        };
     };
 
     function renderList(data) {
@@ -283,9 +269,7 @@
         data.forEach(item => {
             if(item.count) {
                 const num = parseInt(item.count.toString().replace(/[^0-9]/g, ""), 10);
-                if(!isNaN(num)) {
-                    totalPeopleSum += num;
-                }
+                if(!isNaN(num)) { totalPeopleSum += num; }
             }
         });
         document.getElementById('totalPeople').innerText = totalPeopleSum;
@@ -308,9 +292,9 @@
                         <p><strong>연락처:</strong> <a href="tel:${item.phone}" style="color:#2980b9; text-decoration:none;">${item.phone}</a></p>
                         
                         <div class="controls">
-                            <button onclick="updateReservation(${item.id})" class="btn-edit">✏️ 정보수정</button>
+                            <button onclick="updateReservation('${item.id}')" class="btn-edit">✏️ 정보수정</button>
                             <button onclick="sendUnpaidSms('${item.name}', '${item.phone}')" class="btn-sms">💬 미입금 안내</button>
-                            <button onclick="deleteReservation(${item.id})" class="btn-delete">🗑️ 삭제</button>
+                            <button onclick="deleteReservation('${item.id}')" class="btn-delete">🗑️ 삭제</button>
                         </div>
                     </div>
                 </div>
@@ -318,6 +302,42 @@
             container.innerHTML += cardHtml;
         });
     }
+
+    // 📊 구글시트/엑셀 가져가기용 CSV 파일 내보내기 엔진 (클릭 즉시 다운로드)
+    window.exportToExcel = function() {
+        if (currentFetchedData.length === 0) {
+            alert("내보낼 데이터가 없습니다. 먼저 기간 설정을 통해 데이터를 조회해 주세요.");
+            return;
+        }
+
+        let csvContent = "\uFEFF"; // 한글 깨짐 방지용 BOM 코드
+        csvContent += "예약일시,상태,예약자명,인원수,연락처\n";
+
+        currentFetchedData.forEach(item => {
+            const row = [
+                `"${item.time}"`,
+                `"${item.status}"`,
+                `"${item.name}"`,
+                `"${item.count}"`,
+                `"${item.phone}"`
+            ].join(",");
+            csvContent += row + "\n";
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", `알지골프_예약리스트_${start}_to_${end}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     window.sendUnpaidSms = function(name, phone) {
         const message = `[알지골프] 안녕하세요 ${name}님, 예약 건에 대해 입금이 확인 안 되니 확인해 주시기 바랍니다. \n■ 입금계좌: ${BANK_ACCOUNT}`;
@@ -334,13 +354,13 @@
         });
     };
 
-    window.updateReservation = function(id) {
-        const transaction = db.transaction(["reservations"], "readwrite");
-        const store = transaction.objectStore("reservations");
-        const getRequest = store.get(id);
+    window.updateReservation = async function(id) {
+        try {
+            const resRef = ref(firebaseDb, `reservations/${id}`);
+            const snapshot = await get(resRef);
+            if (!snapshot.exists()) return;
 
-        getRequest.onsuccess = function() {
-            const data = getRequest.result;
+            const data = snapshot.val();
             let newCount = prompt("변경할 예약 인원수를 입력하세요:", data.count);
             if (newCount === null) return; 
             if (newCount.trim() !== "" && !newCount.includes('명')) {
@@ -352,23 +372,24 @@
             data.count = newCount;
             data.status = newStatus;
 
-            const updateRequest = store.put(data);
-            updateRequest.onsuccess = function() {
-                alert("예약 정보가 정상적으로 수정되었습니다.");
-                fetchData(); 
-            };
-        };
+            await set(resRef, data);
+            alert("구글 서버에 예약 정보가 정상적으로 수정되었습니다.");
+            fetchData(); 
+        } catch (e) {
+            alert("수정 중 오류가 발생했습니다.");
+        }
     };
 
-    window.deleteReservation = function(id) {
-        if (confirm("정말로 해당 예약 내역을 영구 삭제하시겠습니까?")) {
-            const transaction = db.transaction(["reservations"], "readwrite");
-            const store = transaction.objectStore("reservations");
-            const deleteRequest = store.delete(id);
-            deleteRequest.onsuccess = function() {
+    window.deleteReservation = async function(id) {
+        if (confirm("정말로 해당 예약 내역을 구글 서버에서 영구 삭제하시겠습니까?")) {
+            try {
+                const resRef = ref(firebaseDb, `reservations/${id}`);
+                await remove(resRef);
                 alert("해당 예약 데이터가 정상 삭제되었습니다.");
                 fetchData(); 
-            };
+            } catch(e) {
+                alert("삭제 중 오류가 발생했습니다.");
+            }
         }
     };
 </script>
