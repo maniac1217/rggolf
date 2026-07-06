@@ -2,38 +2,42 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Firebase 🔥 Airtable 강제 연동기 (오류 수정판)</title>
+    <title>구글 시트 데이터 연동 관리자 도구</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
-        #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; margin-bottom: 10px; }
-        #btn-sync { padding: 12px 24px; font-size: 16px; font-weight: bold; background-color: #e91e63; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-        #btn-sync:hover { background-color: #c2185b; }
-        #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ccc; }
-        .success { color: green; font-weight: bold; }
-        .fb-success { color: #ff5722; font-weight: bold; }
-        .warn { color: #f44336; font-weight: bold; background-color: #ffebee; padding: 2px 5px; border-radius: 3px; }
+        body { font-family: 'Apple SD Gothic Neo', Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
+        #status { padding: 15px; border-radius: 5px; background-color: #e3f2fd; color: #0d47a1; font-weight: bold; margin-bottom: 20px; }
+        .btn-action { padding: 10px 20px; font-size: 15px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-view { background-color: #008cba; }
+        .btn-import { background-color: #e67e22; }
+        .btn-export { background-color: #4285F4; }
+        .btn-back { background-color: #7f8c8d; text-decoration: none; display: inline-block; text-align: center; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .box-container { margin-bottom: 25px; background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; margin-top: 10px; }
+        th, td { padding: 10px; border: 1px solid #ccc; }
+        th { background-color: #f2f2f2; }
+        
+        .flex-inputs { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-    <h2>🔥 대시보드: 수동 입력 자료 Firebase 강제 전송 시스템 (Airtable 탑재)</h2>
+    <h2>📊 알지골프 - 구글 시트 데이터 동기화 시스템</h2>
     <div id="status">상태: RG_Golf_DB 데이터베이스 연결 중...</div>
     
-    <button id="btn-sync">🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송</button>
-
-    <div style="margin-top: 30px; margin-bottom: 30px; background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+    <div class="box-container">
         <h3 style="margin-top:0; color: #333;">📦 브라우저 창고(IndexedDB) 저장 데이터 실시간 조회</h3>
-        <button id="btn-view-db" style="padding: 8px 16px; background-color: #008cba; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            🔍 창고 데이터 전부 펼쳐보기
-        </button>
+        <button id="btn-view-db" class="btn-action btn-view">🔍 창고 데이터 전부 펼쳐보기</button>
         
-        <div style="margin-top: 15px; overflow-x: auto;">
-            <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+        <div style="overflow-x: auto;">
+            <table>
                 <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="padding: 10px;">이름 (Key)</th>
-                        <th style="padding: 10px;">내용 (상세 데이터)</th>
-                        <th style="padding: 10px;">관리</th>
+                    <tr>
+                        <th>이름 (예약자명)</th>
+                        <th>내용 (상세 데이터)</th>
+                        <th style="width: 80px; text-align: center;">관리</th>
                     </tr>
                 </thead>
                 <tbody id="db-list-tbody">
@@ -45,54 +49,59 @@
         </div>
     </div>
 
-    <div style="margin-top: 15px; padding: 15px; background-color: #f9f9f9; border: 1px dashed #ccc; border-radius: 6px;">
-        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #555;">📥 구글시트 장부 데이터를 다시 프로그램으로 올리기</p>
-        <input type="text" id="input-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/... 주소를 통째로 붙여넣으세요" style="width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-        <button id="btn-import-sheet" style="padding: 8px 16px; background-color: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">
-            🔄 자료 구조 검증 후 복원
-        </button>
+    <div class="box-container">
+        <h3 style="margin-top:0; color: #333;">📥 구글시트 장부 데이터를 가져와서 로컬창고 복원</h3>
+        <p style="margin: 0; font-size: 13px; color: #666;">※ 복원 시작 시 브라우저 내의 기존 데이터는 초기화되고 구글 시트 내용으로 대체됩니다.</p>
+        <div class="flex-inputs">
+            <input type="text" id="input-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/... 주소를 통째로 붙여넣으세요">
+            <button id="btn-import-sheet" class="btn-action btn-import">🔄 자료 구조 검증 후 복원</button>
+        </div>
     </div>
 
-    <div style="margin-top: 15px;">
-        <button id="btn-google-open" style="padding: 8px 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-            🌐 구글시트로 표준 규격 내보내기
-        </button>    
+    <div class="box-container" style="display: flex; gap: 10px;">
+        <button id="btn-google-open" class="btn-action btn-export">🌐 구글시트로 표준 규격 내보내기</button> 
+        <a href="admin.html" class="btn-action btn-back" style="line-height: 23px;">⬅ 관리자 화면으로 돌아가기</a>
     </div>
-
-    <h3>배달 작업 기록창</h3>
-    <div id="log">아직 진행된 작업이 없습니다.</div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        // ==================== [설정값 세팅] ====================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
-            authDomain: "rg-golf.firebaseapp.com",
-            databaseURL: "https://rg-golf-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "rg-golf",
-            storageBucket: "rg-golf.firebasestorage.app",
-            messagingSenderId: "382686211001",
-            appId: "1:382686211001:web:9c0dfba9c93b7966c9a468",
-            measurementId: "G-WT14V4N0EX"
-        };
-
-        const airtableWebhookUrl = "https://hooks.airtable.com/workflows/v1/genericWebhook/appM3tcHSRyeByt7v/wflwEn5fcJU6KYc96/wtrSa5WYr8NP8o20f";
+        // Google Apps Script 웹 앱 URL (기존 제공 주소 유지)
         const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
-        // =====================================================
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
 
         const statusDiv = document.getElementById("status");
-        const logDiv = document.getElementById("log");
-        const syncBtn = document.getElementById("btn-sync");
-
+        const tbody = document.getElementById("db-list-tbody");
         let idb = null;
 
+        // 📦 IndexedDB 초기화 및 커넥션 연결
+        const dbRequest = indexedDB.open("RG_Golf_DB");
+        dbRequest.onupgradeneeded = function(e) {
+            let database = e.target.result;
+            if (!database.objectStoreNames.contains("reservations")) {
+                database.createObjectStore("reservations", { keyPath: "id" });
+            }
+        };
+        dbRequest.onsuccess = function(e) {
+            idb = e.target.result;
+            setTimeout(() => { checkDatabaseCount(); viewIndexedDBData(); }, 200);
+        };
+        dbRequest.onerror = function() {
+            statusDiv.innerHTML = "상태: ❌ 실제 RG_Golf_DB 보관함을 열지 못했습니다.";
+        };
+
+        // 로컬 창고 데이터 개수 확인 표시
+        function checkDatabaseCount() {
+            if (!idb) return;
+            try {
+                const transaction = idb.transaction(["reservations"], "readonly");
+                const store = transaction.objectStore("reservations");
+                const countRequest = store.count();
+                countRequest.onsuccess = function() {
+                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [reservations]</b> 연결 성공! (현재 창고 자료: <span style="color:red; font-size:16px;">${countRequest.result}</span>개)`;
+                };
+            } catch (err) { console.error(err); }
+        }
+
+        // 창고 데이터 테이블 렌더링 함수
         function viewIndexedDBData() {
-            const tbody = document.getElementById("db-list-tbody");
             if (!idb) return;
             try {
                 const transaction = idb.transaction(["reservations"], "readonly");
@@ -125,11 +134,12 @@
                         delBtn.innerText = "삭제";
                         delBtn.style.cssText = "padding:4px 8px; background-color:#f44336; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;";
                         delBtn.onclick = function() {
-                            if (confirm(`[${currentName}] 데이터를 삭제하시겠습니까?`)) {
-                                idb.transaction(["reservations"], "readwrite").objectStore("reservations").delete(item.id || item.name).onsuccess = function() {
+                            if (confirm(`[${currentName}] 데이터를 로컬창고에서 삭제하시겠습니까?`)) {
+                                idb.transaction(["reservations"], "readwrite").objectStore("reservations").delete(item.id).onsuccess = function() {
                                     alert("삭제 완료되었습니다.");
                                     viewIndexedDBData();
                                     checkDatabaseCount();
+                                    localStorage.setItem("db_updated_signal", Date.now());
                                 };
                             }
                         };
@@ -143,39 +153,9 @@
                 };
             } catch (err) { console.error(err); }
         }
-
-        const dbRequest = indexedDB.open("RG_Golf_DB");
-        dbRequest.onupgradeneeded = function(e) {
-            let database = e.target.result;
-            if (!database.objectStoreNames.contains("reservations")) {
-                database.createObjectStore("reservations", { keyPath: "id" });
-            }
-            if (!database.objectStoreNames.contains("notion_sent")) {
-                database.createObjectStore("notion_sent", { keyPath: "name" });
-            }
-        };
-        dbRequest.onsuccess = function(e) {
-            idb = e.target.result;
-            setTimeout(() => { checkDatabaseCount(); viewIndexedDBData(); }, 200);
-        };
-        dbRequest.onerror = function() {
-            statusDiv.innerText = "상태: ❌ 실제 RG_Golf_DB 보관함을 열지 못했습니다.";
-        };
-
-        function checkDatabaseCount() {
-            if (!idb) return;
-            try {
-                const transaction = idb.transaction(["reservations"], "readonly");
-                const store = transaction.objectStore("reservations");
-                const countRequest = store.count();
-                countRequest.onsuccess = function() {
-                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [reservations]</b> 연결 성공! (현재 대기 자료: <span style="color:red; font-size:18px;">${countRequest.result}</span>개)`;
-                };
-            } catch (err) { console.error(err); }
-        }
-
         document.getElementById("btn-view-db").addEventListener("click", viewIndexedDBData);
 
+        // 🌐 1. 구글시트로 표준 규격 내보내기 (GAS 연동)
         async function exportAndOpenGoogleSheet() {
             if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
             try {
@@ -199,6 +179,7 @@
                     const openBtn = document.getElementById("btn-google-open");
                     openBtn.innerText = "⏳ 구글 시트 생성 및 이동 중...";
                     openBtn.disabled = true;
+
                     fetch(googleScriptUrl, {
                         method: "POST",
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -207,7 +188,7 @@
                     .then(res => res.json())
                     .then(resultJson => {
                         if (resultJson.success && resultJson.sheetUrl) {
-                            printLog(`<span class="success">✅ 표준 규격 시트 생성 완료! 새 창을 엽니다.</span>`);
+                            alert("✅ 표준 규격 구글 시트 생성이 완료되었습니다! 새 창에서 시트를 엽니다.");
                             window.open(resultJson.sheetUrl, "_blank");
                         } else { alert("구글 시트 생성 실패: " + JSON.stringify(resultJson)); }
                     })
@@ -221,171 +202,95 @@
         }
         document.getElementById("btn-google-open").addEventListener("click", exportAndOpenGoogleSheet);
 
+        // 📥 2. 구글시트 주소로부터 데이터를 덤프 받아와 로컬창고 복원
         async function importGoogleSheetToProgram() {
-    const sheetUrl = document.getElementById("input-sheet-url").value.trim();
-    if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-    if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
-    
-    // ⚠️ 사용자에게 사전 경고 및 확정 받기
-    if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) return;
+            const sheetUrl = document.getElementById("input-sheet-url").value.trim();
+            if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
+            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
+            
+            if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) return;
 
-    const importBtn = document.getElementById("btn-import-sheet");
-    try {
-        importBtn.innerText = "⏳ 창고 비우기 및 데이터 주입 중...";
-        importBtn.disabled = true;
+            const importBtn = document.getElementById("btn-import-sheet");
+            try {
+                importBtn.innerText = "⏳ 창고 비우기 및 데이터 주입 중...";
+                importBtn.disabled = true;
 
-        const response = await fetch(googleScriptUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
-        });
+                const response = await fetch(googleScriptUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
+                });
 
-        const resultJson = JSON.parse(await response.text());
-        if (!resultJson.success || !resultJson.data) throw new Error(resultJson.message || "데이터 확인 실패");
+                const resultJson = JSON.parse(await response.text());
+                if (!resultJson.success || !resultJson.data) throw new Error(resultJson.message || "데이터 확인 실패");
 
-        const transaction = idb.transaction(["reservations"], "readwrite");
-        const store = transaction.objectStore("reservations");
+                const transaction = idb.transaction(["reservations"], "readwrite");
+                const store = transaction.objectStore("reservations");
 
-        // 🔥 [핵심 추가] 기존 저장소 데이터를 흔적도 없이 싹 비웁니다.
-        const clearRequest = store.clear();
-        
-        clearRequest.onsuccess = function() {
-            let importCount = 0;
-
-            resultJson.data.forEach(row => {
-                let source = (row.content && typeof row.content === 'object') ? row.content : row;
-                let fId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
-                let fName = source.name || source.Name || source["이름"] || "";
-                let fTime = source.time || source.Time || source["시간"] || "";
+                const clearRequest = store.clear();
                 
-                if (!fName || !fTime) return; // 필수값 없으면 패스
+                clearRequest.onsuccess = function() {
+                    let importCount = 0;
 
-                let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
-                let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+                    resultJson.data.forEach(row => {
+                        let source = (row.content && typeof row.content === 'object') ? row.content : row;
+                        let fId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
+                        let fName = source.name || source.Name || source["이름"] || "";
+                        let fTime = source.time || source.Time || source["시간"] || "";
+                        
+                        if (!fName || !fTime) return; // 필수값 낙하 시 스킵
 
-                const verifiedObject = {
-                    id: String(fId).trim(),
-                    name: String(fName).trim(),
-                    phone: String(source.phone || "").replace(/[^0-9]/g, ''),
-                    count: numericCount + "명",
-                    numericCount: numericCount,
-                    time: String(fTime).trim(),
-                    status: String(source.status || "대기").trim(),
-                    createdAt: fCreatedAt,
-                    content: {
-                        id: String(fId).trim(),
-                        name: String(fName).trim(),
-                        phone: String(source.phone || "").replace(/[^0-9]/g, ''),
-                        count: numericCount + "명",
-                        time: String(fTime).trim(),
-                        status: String(source.status || "대기").trim(),
-                        createdAt: fCreatedAt
-                    }
+                        let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
+                        let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+
+                        const verifiedObject = {
+                            id: String(fId).trim(),
+                            name: String(fName).trim(),
+                            phone: String(source.phone || "").replace(/[^0-9]/g, ''),
+                            count: numericCount + "명",
+                            numericCount: numericCount,
+                            time: String(fTime).trim(),
+                            status: String(source.status || "대기").trim(),
+                            createdAt: fCreatedAt,
+                            content: {
+                                id: String(fId).trim(),
+                                name: String(fName).trim(),
+                                phone: String(source.phone || "").replace(/[^0-9]/g, ''),
+                                count: numericCount + "명",
+                                time: String(fTime).trim(),
+                                status: String(source.status || "대기").trim(),
+                                createdAt: fCreatedAt
+                            }
+                        };
+                        
+                        store.put(verifiedObject);
+                        importCount++;
+                    });
+
+                    transaction.oncomplete = function() {
+                        alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 조회 화면(admin.html)으로 돌아가시면 데이터가 실시간 갱신되어 있습니다.`);
+                        document.getElementById("input-sheet-url").value = "";
+                        
+                        // 크로스 탭 알림 신호 전달 (admin.html 자동 새로고침 트리거)
+                        localStorage.setItem("db_updated_signal", Date.now());
+                        
+                        viewIndexedDBData();
+                        checkDatabaseCount();
+                    };
                 };
-                
-                store.put(verifiedObject);
-                importCount++;
-            });
 
-            transaction.oncomplete = function() {
-                alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 관리자 메뉴(admin.html)를 새로고침 하시면 깨끗한 자료가 나타납니다.`);
-                document.getElementById("input-sheet-url").value = "";
-                
-                // 관리자 메뉴단에 실시간 리프레시 신호 전달
-                localStorage.setItem("db_updated_signal", Date.now());
-                
-                viewIndexedDBData();
-                checkDatabaseCount();
-            };
-        };
+                clearRequest.onerror = function(e) {
+                    throw new Error("창고를 비우는 중 오류가 발생했습니다: " + e.target.error.message);
+                };
 
-        clearRequest.onerror = function(e) {
-            throw new Error("창고를 비우는 중 오류가 발생했습니다: " + e.target.error.message);
-        };
-
-    } catch (error) { 
-        alert("오류: " + error.message); 
-    } finally {
-        importBtn.innerText = "🔄 구글시트에서 강제복원";
-        importBtn.disabled = false;
-    }
-}
-
-        function saveToNotionSentHistory(name) {
-            try { idb.transaction(["notion_sent"], "readwrite").objectStore("notion_sent").put({ name: name, sentAt: new Date().getTime() }); } catch (e) {}
-        }
-        function checkNotionHistory(name) {
-            return new Promise((resolve) => {
-                try {
-                    const request = idb.transaction(["notion_sent"], "readonly").objectStore("notion_sent").get(name);
-                    request.onsuccess = function(e) { resolve(!!e.target.result); };
-                    request.onerror = function() { resolve(false); };
-                } catch { resolve(false); }
-            });
-        }
-        function getAllItemsFromIndexedDB() {
-            return new Promise((resolve) => {
-                try {
-                    const request = idb.transaction(["reservations"], "readonly").objectStore("reservations").getAll();
-                    request.onsuccess = function(e) { resolve(e.target.result || []); };
-                    request.onerror = function() { resolve([]); };
-                } catch (err) { resolve([]); }
-            });
-        }
-
-        async function forceSendToFirebase(rawId, record) {
-            try {
-                const dbRef = ref(db, 'reservations/' + rawId);
-                await set(dbRef, {
-                    name: record.name, phone: record.phone, time: record.time, count: record.count, status: record.status, createdAt: record.createdAt,
-                    forcedSync: true, updatedAt: new Date().toISOString()
-                });
-                printLog(`<span class="fb-success">🚀 [Firebase 성공] 고객: ${record.name}</span>`);
-                return { success: true, id: rawId, name: record.name };
-            } catch (error) {
-                printLog(`<span class="warn">❌ [Firebase 실패] 원인: ${error.message}</span>`);
-                return { success: false, id: rawId, name: record.name };
+            } catch (error) { 
+                alert("오류: " + error.message); 
+            } finally {
+                importBtn.innerText = "🔄 자료 구조 검증 후 복원";
+                importBtn.disabled = false;
             }
         }
-
-        async function sendToAirtable(name, record) {
-            if (!airtableWebhookUrl || airtableWebhookUrl.includes("여기에_에어테이블")) return false;
-            try {
-                const response = await fetch(airtableWebhookUrl, {
-                    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name, content: JSON.stringify(record) })
-                });
-                return response.ok;
-            } catch (error) { return false; }
-        }
-
-        syncBtn.addEventListener("click", async () => {
-            syncBtn.disabled = true; syncBtn.innerText = "⏳ 데이터 전송 진행 중...";
-            const localItems = await getAllItemsFromIndexedDB();
-            if (localItems.length === 0) {
-                alert("전송할 데이터가 없습니다!"); syncBtn.disabled = false; syncBtn.innerText = "🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송"; return;
-            }
-            let fbCount = 0; let airtableCount = 0;
-            for (const item of localItems) {
-                const targetId = item.id || "ID_" + Math.floor(Math.random() * 100000);
-                const fbResult = await forceSendToFirebase(targetId, item);
-                if (fbResult.success) {
-                    fbCount++;
-                    const isAlreadySent = await checkNotionHistory(fbResult.name);
-                    if (!isAlreadySent) {
-                        const airtableSuccess = await sendToAirtable(fbResult.name, item);
-                        if (airtableSuccess) { saveToNotionSentHistory(fbResult.name); airtableCount++; }
-                    }
-                }
-            }
-            printLog(`<b class="success">🏁 전송 완료! (파이어베이스: ${fbCount} / Airtable: ${airtableCount})</b>`);
-            syncBtn.disabled = false; syncBtn.innerText = "🚀 RG_Golf_DB 자료 Firebase 무조건 강제 전송";
-            checkDatabaseCount(); viewIndexedDBData();
-        });
-
-        function printLog(message) {
-            logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }
+        document.getElementById("btn-import-sheet").addEventListener("click", importGoogleSheetToProgram);
     </script>
 </body>
 </html>
