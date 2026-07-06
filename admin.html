@@ -194,18 +194,17 @@ window.fetchData = function() {
 
         request.onsuccess = function(event) {
             const allItems = event.target.result || [];
-            
-            const parsedData = allItems.map(item => {
-                let source = (item.content && typeof item.content === 'object') ? item.content : item;
-                
-                // ⚠️ [핵심 조치] 깨진 날짜 변환기 작동
-                let rawTime = source.time || item.time || "";
-                let formattedTime = "";
-                let targetDate = "";
+            const parsedData = [];
 
-                if (rawTime) {
-                    try {
-                        // "Fri Jun 05 2026..." 같은 영문 표준시 형태이거나 날짜 객체인 경우 처리
+            allItems.forEach(item => {
+                try {
+                    let source = (item.content && typeof item.content === 'object') ? item.content : item;
+                    
+                    let rawTime = source.time || item.time || "";
+                    let formattedTime = "";
+                    let targetDate = "";
+
+                    if (rawTime) {
                         const d = new Date(rawTime);
                         if (!isNaN(d.getTime())) {
                             const yyyy = d.getFullYear();
@@ -213,43 +212,48 @@ window.fetchData = function() {
                             const dd = String(d.getDate()).padStart(2, '0');
                             const hh = String(d.getHours()).padStart(2, '0');
                             const mi = String(d.getMinutes()).padStart(2, '0');
-                            
-                            // 시스템 표준 형태인 YYYY-MM-DD HH:mm 구조로 강제 리포맷팅
                             formattedTime = `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
                             targetDate = `${yyyy}-${mm}-${dd}`;
                         } else {
-                            // 이미 정상 포맷(2026-07-06 14:30)인 경우 그대로 유지
+                            // 날짜 형식이 완전히 망가진 글자일 경우 오늘 날짜로 임시 대체하여 멈춤 방지
                             formattedTime = String(rawTime).trim();
-                            targetDate = formattedTime.substring(0, 10);
+                            targetDate = formattedTime.length >= 10 ? formattedTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
                         }
-                    } catch (e) {
-                        formattedTime = String(rawTime).trim();
-                        targetDate = formattedTime.substring(0, 10);
+                    } else {
+                        // 시간 정보가 아예 없는 경우 방어선
+                        targetDate = new Date().toISOString().substring(0, 10);
+                        formattedTime = targetDate + " 00:00";
                     }
-                }
 
-                // 만약 createdAt이 별도로 깨져있다면 위에서 정제한 날짜로 대체 보완
-                let fCreatedAt = source.createdAt ? source.createdAt.substring(0, 10) : targetDate;
-                if (!fCreatedAt || fCreatedAt.includes("Fri") || fCreatedAt.includes("GMT")) {
-                    fCreatedAt = targetDate;
-                }
+                    let fCreatedAt = source.createdAt ? String(source.createdAt).substring(0, 10) : targetDate;
+                    if (!fCreatedAt || fCreatedAt.includes("Fri") || fCreatedAt.includes("GMT") || fCreatedAt === "undefined") {
+                        fCreatedAt = targetDate;
+                    }
 
-                return {
-                    id: item.id || source.id,
-                    name: source.name || item.name || "무명",
-                    phone: source.phone || item.phone || "-",
-                    time: formattedTime, // 2026-06-05 19:30 형태로 강제 주입됨
-                    count: source.count || item.count || "1명",
-                    status: source.status || item.status || "대기중",
-                    createdAt: fCreatedAt // 비교 대상 날짜도 YYYY-MM-DD로 일치화
-                };
+                    parsedData.push({
+                        id: String(item.id || source.id || "ID_" + Math.random()),
+                        name: source.name || item.name || "이름누락",
+                        phone: source.phone || item.phone || "-",
+                        time: formattedTime,
+                        count: source.count || item.count || "1명",
+                        status: source.status || item.status || "대기중",
+                        createdAt: fCreatedAt
+                    });
+                } catch (e) {
+                    // 특정 한 건이 심각하게 깨져도 로그만 남기고 다음 데이터로 넘어가서 전체가 멈추는 것을 방지
+                    console.error("특정 행 파싱 에러 스킵:", e);
+                }
             });
 
-            // 이제 달력(YYYY-MM-DD) 조건 범위 필터링이 정상 작동합니다!
+            // 달력 범위 필터링
             const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
             
-            // 최신 시간순 정렬
-            filteredData.sort((a, b) => new Date(b.time.replace(/-/g, '/')) - new Date(a.time.replace(/-/g, '/')));
+            // 🎯 [안전장치] 정렬 도중 에러(NaN)가 발생하지 않도록 안전한 비교문으로 교체
+            filteredData.sort((a, b) => {
+                const timeA = new Date(a.time.replace(/-/g, '/')).getTime() || 0;
+                const timeB = new Date(b.time.replace(/-/g, '/')).getTime() || 0;
+                return timeB - timeA;
+            });
             
             currentFetchedData = filteredData;
             renderList(filteredData);
