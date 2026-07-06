@@ -308,20 +308,31 @@
                     }
 
                     // 최종 완벽 검증된 IndexedDB 전용 형태 오브젝트 빌드
-                    const verifiedObject = {
-                        id: String(fId).trim(),
-                        name: fName,
-                        phone: String(fPhone).replace(/[^0-9]/g, ''),
-                        count: fCount,
-                        numericCount: numericCount,
-                        time: fTime,
-                        status: fStatus,
-                        createdAt: fCreatedAt
-                    };
+                    // firebase_link.html 소스 코드 중 verifiedObject 부분을 아래와 같이 더 튼튼하게 보정합니다.
+const verifiedObject = {
+    id: String(fId).trim(),
+    name: fName, // 관리자 메뉴가 name을 Key로 찾을 경우를 대비
+    phone: String(fPhone).replace(/[^0-9]/g, ''),
+    count: fCount,
+    numericCount: numericCount,
+    time: fTime,
+    status: fStatus,
+    createdAt: fCreatedAt,
+    
+    // 혹시 admin.html이 구형 포맷인 content 내부 구조를 파싱하는 경우까지 방어
+    content: {
+        id: String(fId).trim(),
+        name: fName,
+        phone: String(fPhone).replace(/[^0-9]/g, ''),
+        count: fCount,
+        time: fTime,
+        status: fStatus,
+        createdAt: fCreatedAt
+    }
+});
 
-                    store.put(verifiedObject);
-                    importCount++;
-                });
+// store.put에 식별자를 명시적으로 강제 지정 유도
+store.put(verifiedObject, verifiedObject.id);
 
                 transaction.oncomplete = function() {
                     alert(`🎉 검증 완료 및 복원 성공!\n\n수입 성공: ${importCount}건\n규격 미달 제외: ${skipCount}건\n\n관리자 메뉴가 즉시 활성화됩니다.`);
