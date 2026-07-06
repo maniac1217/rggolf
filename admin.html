@@ -108,7 +108,11 @@
         <a href="index.html" class="btn-back">⬅ 메인 예약화면으로 돌아가기</a>
     </div>
 </div>
-
+<div style="margin-bottom: 15px;">
+    <button id="btn-force-load" style="padding: 10px 20px; font-size: 14px; font-weight: bold; background-color: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+        🚨 창고 데이터 강제 호출 (응급 복구용)
+    </button>
+</div>
 <script type="module">
     let idb = null;
     let currentFetchedData = []; 
@@ -439,6 +443,64 @@
             }
         }
     };
+    (function 강제_데이터_호출() {
+    const dbRequest = indexedDB.open("RG_Golf_DB");
+    
+    dbRequest.onsuccess = function(e) {
+        const idb = e.target.result;
+        if (!idb.objectStoreNames.contains("reservations")) {
+            console.error("❌ reservations 창고를 찾을 수 없습니다.");
+            return;
+        }
+        
+        const transaction = idb.transaction(["reservations"], "readonly");
+        const store = transaction.objectStore("reservations");
+        const request = store.getAll();
+        
+        request.onsuccess = function(event) {
+            const items = event.target.result || [];
+            console.log(`🎯 창고에서 [${items.length}건]의 원시 자료를 강제 인양했습니다.`, items);
+            
+            // 화면의 테이블 바디 태그 찾기 (가장 흔한 패턴 3가지 자동 매칭)
+            const tbody = document.getElementById("db-list-tbody") || 
+                          document.getElementById("list-tbody") || 
+                          document.querySelector("tbody");
+                          
+            if (!tbody) {
+                console.error("❌ 데이터를 주입할 테이블(tbody) 태그를 찾지 못했습니다.");
+                return;
+            }
+            
+            tbody.innerHTML = ""; // 기존 비어있다는 메시지 삭제
+            
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">창고 자체가 완전히 비어있습니다.</td></tr>`;
+                return;
+            }
+            
+            // 자료가 어떤 형태(중첩 혹은 루트)로 파편화되어 있든 강제로 매칭하여 화면에 주입
+            items.forEach((item, index) => {
+                let data = item.content ? item.content : item;
+                
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="padding:10px; text-align:center;">${index + 1}</td>
+                    <td style="padding:10px; font-weight:bold;">${data.name || item.name || '무명'}</td>
+                    <td style="padding:10px;">${data.phone || item.phone || '-'}</td>
+                    <td style="padding:10px;">${data.time || item.time || '-'}</td>
+                    <td style="padding:10px;">${data.count || item.count || '1명'}</td>
+                    <td style="padding:10px; text-align:center;"><span style="background:#eee; padding:3px 8px; border-radius:3px;">${data.status || item.status || '대기'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            console.log("✅ 화면에 자료를 강제로 로드하는 데 성공했습니다!");
+        };
+    };
+    
+    dbRequest.onerror = function() {
+        console.error("❌ IndexedDB 창고 개방에 실패했습니다.");
+    };
+})();
 </script>
 </body>
 </html>
