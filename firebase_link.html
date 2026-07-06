@@ -222,77 +222,94 @@
         document.getElementById("btn-google-open").addEventListener("click", exportAndOpenGoogleSheet);
 
         async function importGoogleSheetToProgram() {
-            const sheetUrl = document.getElementById("input-sheet-url").value.trim();
-            if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
-            if (!confirm("구글 시트 데이터를 복원하시겠습니까?")) return;
+    const sheetUrl = document.getElementById("input-sheet-url").value.trim();
+    if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
+    if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
+    
+    // ⚠️ 사용자에게 사전 경고 및 확정 받기
+    if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) return;
 
-            const importBtn = document.getElementById("btn-import-sheet");
-            try {
-                importBtn.innerText = "⏳ 데이터 형태 검증 및 주입 중...";
-                importBtn.disabled = true;
+    const importBtn = document.getElementById("btn-import-sheet");
+    try {
+        importBtn.innerText = "⏳ 창고 비우기 및 데이터 주입 중...";
+        importBtn.disabled = true;
 
-                const response = await fetch(googleScriptUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
-                });
+        const response = await fetch(googleScriptUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
+        });
 
-                const resultJson = JSON.parse(await response.text());
-                if (!resultJson.success || !resultJson.data) throw new Error(resultJson.message || "데이터 확인 실패");
+        const resultJson = JSON.parse(await response.text());
+        if (!resultJson.success || !resultJson.data) throw new Error(resultJson.message || "데이터 확인 실패");
 
-                const transaction = idb.transaction(["reservations"], "readwrite");
-                const store = transaction.objectStore("reservations");
-                let importCount = 0;
+        const transaction = idb.transaction(["reservations"], "readwrite");
+        const store = transaction.objectStore("reservations");
 
-                resultJson.data.forEach(row => {
-                    let source = (row.content && typeof row.content === 'object') ? row.content : row;
-                    let fId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
-                    let fName = source.name || source.Name || source["이름"] || "";
-                    let fTime = source.time || source.Time || source["시간"] || "";
-                    
-                    if (!fName || !fTime) return;
+        // 🔥 [핵심 추가] 기존 저장소 데이터를 흔적도 없이 싹 비웁니다.
+        const clearRequest = store.clear();
+        
+        clearRequest.onsuccess = function() {
+            let importCount = 0;
 
-                    let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
-                    let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+            resultJson.data.forEach(row => {
+                let source = (row.content && typeof row.content === 'object') ? row.content : row;
+                let fId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
+                let fName = source.name || source.Name || source["이름"] || "";
+                let fTime = source.time || source.Time || source["시간"] || "";
+                
+                if (!fName || !fTime) return; // 필수값 없으면 패스
 
-                    const verifiedObject = {
+                let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
+                let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+
+                const verifiedObject = {
+                    id: String(fId).trim(),
+                    name: String(fName).trim(),
+                    phone: String(source.phone || "").replace(/[^0-9]/g, ''),
+                    count: numericCount + "명",
+                    numericCount: numericCount,
+                    time: String(fTime).trim(),
+                    status: String(source.status || "대기").trim(),
+                    createdAt: fCreatedAt,
+                    content: {
                         id: String(fId).trim(),
                         name: String(fName).trim(),
                         phone: String(source.phone || "").replace(/[^0-9]/g, ''),
                         count: numericCount + "명",
-                        numericCount: numericCount,
                         time: String(fTime).trim(),
                         status: String(source.status || "대기").trim(),
-                        createdAt: fCreatedAt,
-                        content: {
-                            id: String(fId).trim(),
-                            name: String(fName).trim(),
-                            phone: String(source.phone || "").replace(/[^0-9]/g, ''),
-                            count: numericCount + "명",
-                            time: String(fTime).trim(),
-                            status: String(source.status || "대기").trim(),
-                            createdAt: fCreatedAt
-                        }
-                    };
-                    store.put(verifiedObject);
-                    importCount++;
-                });
-
-                transaction.oncomplete = function() {
-                    alert(`🎉 검증 완료 및 복원 성공! (총 ${importCount}건)\n관리자 메뉴가 즉시 동기화됩니다.`);
-                    document.getElementById("input-sheet-url").value = "";
-                    localStorage.setItem("db_updated_signal", Date.now());
-                    viewIndexedDBData();
-                    checkDatabaseCount();
+                        createdAt: fCreatedAt
+                    }
                 };
-            } catch (error) { alert("오류: " + error.message); }
-            finally {
-                importBtn.innerText = "🔄 구글시트에서 강제복원";
-                importBtn.disabled = false;
-            }
-        }
-        document.getElementById("btn-import-sheet").addEventListener("click", importGoogleSheetToProgram);
+                
+                store.put(verifiedObject);
+                importCount++;
+            });
+
+            transaction.oncomplete = function() {
+                alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 관리자 메뉴(admin.html)를 새로고침 하시면 깨끗한 자료가 나타납니다.`);
+                document.getElementById("input-sheet-url").value = "";
+                
+                // 관리자 메뉴단에 실시간 리프레시 신호 전달
+                localStorage.setItem("db_updated_signal", Date.now());
+                
+                viewIndexedDBData();
+                checkDatabaseCount();
+            };
+        };
+
+        clearRequest.onerror = function(e) {
+            throw new Error("창고를 비우는 중 오류가 발생했습니다: " + e.target.error.message);
+        };
+
+    } catch (error) { 
+        alert("오류: " + error.message); 
+    } finally {
+        importBtn.innerText = "🔄 구글시트에서 강제복원";
+        importBtn.disabled = false;
+    }
+}
 
         function saveToNotionSentHistory(name) {
             try { idb.transaction(["notion_sent"], "readwrite").objectStore("notion_sent").put({ name: name, sentAt: new Date().getTime() }); } catch (e) {}
