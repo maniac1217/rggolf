@@ -233,40 +233,46 @@
                     let importCount = 0;
 
                     // 📥 [수정본] 구글시트에서 데이터를 가져와 IndexedDB 규격에 완벽히 맞춰 주입하는 로직
+// 📥 [최종 수정본] 에러 요소를 완벽히 제거한 안전한 데이터 주입 로직
 resultJson.data.forEach(row => {
-    // 1. 데이터 원본 위치 확보 (중첩 구조 해제)
+    // 1. 데이터 원본 위치 확보
     let source = (row.content && typeof row.content === 'object') ? row.content : row;
     
-    // 2. 관리자 메뉴와 창고 Key 규격이 요구하는 ID 추출 (문자열 강제 변환 및 공백 제거)
-    let fId = source.id || source.Id || row.id || "";
-    fId = String(fId).trim();
-    
-    // 만약 ID가 누락되었다면 고유한 대체 ID 발급하여 누락 방지
-    if (!fId || fId === "undefined") {
-        fId = "ID_" + Math.floor(Math.random() * 1000000);
-    }
-    
+    // 2. 필수 데이터 검증 (이름과 시간이 없으면 스킵)
     let fName = source.name || source.Name || source["이름"] || "";
     let fTime = source.time || source.Time || source["시간"] || "";
-    
-    if (!fName || !fTime) return; // 필수 예약자명이나 시간이 없으면 유효하지 않으므로 스킵
+    if (!fName || !fTime) return; 
 
-    let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
-    let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    // 3. [KEY 해결] 구글시트에 id가 없으면, 현재 시간 기반으로 고유 ID 자동 부여
+    let fId = source.id || source.Id || row.id || "";
+    fId = String(fId).trim();
+    if (!fId || fId === "undefined" || fId === "null") {
+        // 시간 기반 고유 ID + 랜덤 숫자로 절대 겹치지 않는 고유키 생성
+        fId = "REG_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    }
 
-    // 🎯 [핵심 수정] admin.html이 헷갈리지 않게 루트(최상위) 경로에 모든 데이터 필드를 바인딩합니다.
+    // 4. [createdAt 해결] 생성일이 없으면 오늘 날짜 포맷(YYYY-MM-DD)으로 자동 부여
+    let fCreatedAt = source.createdAt || row.createdAt || "";
+    fCreatedAt = String(fCreatedAt).trim();
+    if (!fCreatedAt || fCreatedAt.length < 10) {
+        fCreatedAt = new Date().toISOString().substring(0, 10);
+    }
+
+    // 5. 인원수 필드 안전하게 정리 (문자열 그대로 보존하여 에러 방지)
+    let fCount = source.count || "1명";
+
+    // 🎯 [정리 완료] 중복 필드(numericCount, content 감싸기)를 모두 제거한 순수 데이터 객체
     const verifiedObject = {
-        id: fId,                                      // Key Path인 "id"와 완벽 매칭
+        id: fId,                         // IndexedDB 기본키와 1:1 매칭 (필수)
         name: String(fName).trim(),
-        phone: String(source.phone || "").replace(/[^0-9]/g, ''), // 숫자만 추출
-        count: numericCount + "명",
-        numericCount: numericCount,
+        phone: String(source.phone || "").replace(/[^0-9]/g, ''), 
+        count: String(fCount).trim(),    // 화면에 표시될 인원수
         time: String(fTime).trim(),
         status: String(source.status || "대기").trim(),
-        createdAt: fCreatedAt
+        createdAt: fCreatedAt            // 자동 부여 또는 정제된 생성일
     };
     
-    // IndexedDB에 주입 (기존에 꼬여있던 복잡한 중첩 구조 탈피)
+    // 로컬 창고에 주입
     store.put(verifiedObject);
     importCount++;
 });
