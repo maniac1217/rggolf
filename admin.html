@@ -262,7 +262,7 @@ window.fetchData = function() {
         console.error("로컬 저장소 조회 실패:", error);
         alert("저장소에서 데이터를 불러오는데 실패했습니다.");
     }
-}); // 🟢 window.fetchData 닫힘
+}; // 🟢 window.fetchData 닫힘
 
             // 달력 범위 필터링
             const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
