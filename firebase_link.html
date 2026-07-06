@@ -232,40 +232,44 @@
                 clearRequest.onsuccess = function() {
                     let importCount = 0;
 
-                    resultJson.data.forEach(row => {
-                        let source = (row.content && typeof row.content === 'object') ? row.content : row;
-                        let fId = source.id || source.Id || row.id || "ID_" + Math.floor(Math.random() * 1000000);
-                        let fName = source.name || source.Name || source["이름"] || "";
-                        let fTime = source.time || source.Time || source["시간"] || "";
-                        
-                        if (!fName || !fTime) return; // 필수값 낙하 시 스킵
+                    // 📥 [수정본] 구글시트에서 데이터를 가져와 IndexedDB 규격에 완벽히 맞춰 주입하는 로직
+resultJson.data.forEach(row => {
+    // 1. 데이터 원본 위치 확보 (중첩 구조 해제)
+    let source = (row.content && typeof row.content === 'object') ? row.content : row;
+    
+    // 2. 관리자 메뉴와 창고 Key 규격이 요구하는 ID 추출 (문자열 강제 변환 및 공백 제거)
+    let fId = source.id || source.Id || row.id || "";
+    fId = String(fId).trim();
+    
+    // 만약 ID가 누락되었다면 고유한 대체 ID 발급하여 누락 방지
+    if (!fId || fId === "undefined") {
+        fId = "ID_" + Math.floor(Math.random() * 1000000);
+    }
+    
+    let fName = source.name || source.Name || source["이름"] || "";
+    let fTime = source.time || source.Time || source["시간"] || "";
+    
+    if (!fName || !fTime) return; // 필수 예약자명이나 시간이 없으면 유효하지 않으므로 스킵
 
-                        let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
-                        let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    let numericCount = parseInt(String(source.count || "1").replace(/[^0-9]/g, '')) || 1;
+    let fCreatedAt = fTime.length >= 10 ? fTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
 
-                        const verifiedObject = {
-                            id: String(fId).trim(),
-                            name: String(fName).trim(),
-                            phone: String(source.phone || "").replace(/[^0-9]/g, ''),
-                            count: numericCount + "명",
-                            numericCount: numericCount,
-                            time: String(fTime).trim(),
-                            status: String(source.status || "대기").trim(),
-                            createdAt: fCreatedAt,
-                            content: {
-                                id: String(fId).trim(),
-                                name: String(fName).trim(),
-                                phone: String(source.phone || "").replace(/[^0-9]/g, ''),
-                                count: numericCount + "명",
-                                time: String(fTime).trim(),
-                                status: String(source.status || "대기").trim(),
-                                createdAt: fCreatedAt
-                            }
-                        };
-                        
-                        store.put(verifiedObject);
-                        importCount++;
-                    });
+    // 🎯 [핵심 수정] admin.html이 헷갈리지 않게 루트(최상위) 경로에 모든 데이터 필드를 바인딩합니다.
+    const verifiedObject = {
+        id: fId,                                      // Key Path인 "id"와 완벽 매칭
+        name: String(fName).trim(),
+        phone: String(source.phone || "").replace(/[^0-9]/g, ''), // 숫자만 추출
+        count: numericCount + "명",
+        numericCount: numericCount,
+        time: String(fTime).trim(),
+        status: String(source.status || "대기").trim(),
+        createdAt: fCreatedAt
+    };
+    
+    // IndexedDB에 주입 (기존에 꼬여있던 복잡한 중첩 구조 탈피)
+    store.put(verifiedObject);
+    importCount++;
+});
 
                     transaction.oncomplete = function() {
                         alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 조회 화면(admin.html)으로 돌아가시면 데이터가 실시간 갱신되어 있습니다.`);
