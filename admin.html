@@ -200,9 +200,10 @@ window.fetchData = function() {
                 try {
                     let source = (item.content && typeof item.content === 'object') ? item.content : item;
                     
+                    // 🎯 [핵심] 영문 표준시(Thu Jun 11...)를 시스템 표준(YYYY-MM-DD HH:mm)으로 완벽 해독
                     let rawTime = source.time || item.time || "";
                     let formattedTime = "";
-                    let targetDate = "";
+                    let targetDate = ""; // 달력 비교용 YYYY-MM-DD
 
                     if (rawTime) {
                         const d = new Date(rawTime);
@@ -212,38 +213,59 @@ window.fetchData = function() {
                             const dd = String(d.getDate()).padStart(2, '0');
                             const hh = String(d.getHours()).padStart(2, '0');
                             const mi = String(d.getMinutes()).padStart(2, '0');
+                            
                             formattedTime = `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
                             targetDate = `${yyyy}-${mm}-${dd}`;
                         } else {
-                            // 날짜 형식이 완전히 망가진 글자일 경우 오늘 날짜로 임시 대체하여 멈춤 방지
+                            // 이미 일반 문자열 포맷일 경우 그대로 유지
                             formattedTime = String(rawTime).trim();
                             targetDate = formattedTime.length >= 10 ? formattedTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
                         }
                     } else {
-                        // 시간 정보가 아예 없는 경우 방어선
                         targetDate = new Date().toISOString().substring(0, 10);
                         formattedTime = targetDate + " 00:00";
                     }
 
-                    let fCreatedAt = source.createdAt ? String(source.createdAt).substring(0, 10) : targetDate;
-                    if (!fCreatedAt || fCreatedAt.includes("Fri") || fCreatedAt.includes("GMT") || fCreatedAt === "undefined") {
-                        fCreatedAt = targetDate;
+                    // 🎯 [생성일자 보정] 깨진 영문 요일 포맷일 경우, 위에서 해독한 날짜(targetDate)로 안전하게 치환
+                    let fCreatedAt = source.createdAt ? String(source.createdAt).trim() : "";
+                    if (!fCreatedAt || fCreatedAt.length < 10 || fCreatedAt.includes("Thu") || fCreatedAt.includes("Fri") || fCreatedAt.includes("Sat") || fCreatedAt.includes("Sun") || fCreatedAt.includes("Mon") || fCreatedAt.includes("Tue") || fCreatedAt.includes("Wed")) {
+                        fCreatedAt = targetDate; 
+                    } else {
+                        fCreatedAt = fCreatedAt.substring(0, 10);
                     }
 
                     parsedData.push({
                         id: String(item.id || source.id || "ID_" + Math.random()),
-                        name: source.name || item.name || "이름누락",
+                        name: source.name || item.name || "무명",
                         phone: source.phone || item.phone || "-",
-                        time: formattedTime,
+                        time: formattedTime, // 이제 무조건 '2026-06-11 22:07' 형태로 정리됨
                         count: source.count || item.count || "1명",
                         status: source.status || item.status || "대기중",
-                        createdAt: fCreatedAt
+                        createdAt: fCreatedAt // 달력 필터와 정상 비교 가능한 YYYY-MM-DD
                     });
                 } catch (e) {
-                    // 특정 한 건이 심각하게 깨져도 로그만 남기고 다음 데이터로 넘어가서 전체가 멈추는 것을 방지
-                    console.error("특정 행 파싱 에러 스킵:", e);
+                    console.error("데이터 변환 중 스킵된 항목:", e);
                 }
             });
+
+            // 달력 범위(시작일 <= 생성일 <= 종료일) 조건 필터링
+            const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
+            
+            // 최신 예약 순 정렬
+            filteredData.sort((a, b) => {
+                const timeA = new Date(a.time.replace(/-/g, '/')).getTime() || 0;
+                const timeB = new Date(b.time.replace(/-/g, '/')).getTime() || 0;
+                return timeB - timeA;
+            });
+            
+            currentFetchedData = filteredData;
+            renderList(filteredData);
+        };
+    } catch (error) {
+        console.error("로컬 저장소 조회 실패:", error);
+        alert("저장소에서 데이터를 불러오는데 실패했습니다.");
+    }
+};
 
             // 달력 범위 필터링
             const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
