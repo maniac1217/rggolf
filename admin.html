@@ -189,6 +189,7 @@
     const SETTLEMENT_KEY = "lastSettlementDate";
     const SETTLEMENT_RECORDS_KEY = "settlementRecords";
     const SETTLEMENT_ACCOUNT = "수협 101-023-410261 박시연";
+    const SETTLEMENT_FALLBACK_START = "2020-01-01";
 
     // 로컬 데이터베이스 커넥션 초기화 함수
     function initIndexedDB() {
@@ -282,7 +283,8 @@
                             fCreatedAt = fCreatedAt.substring(0, 10);
                         }
                         if (fCreatedAt >= startDate && fCreatedAt <= endDate) {
-                            const cnt = parseInt((source.count || item.count || "1").toString().replace(/[^0-9]/g, ""), 10);
+                            const digits = (source.count || item.count || "1").toString().replace(/[^0-9]/g, "") || "1";
+                            const cnt = parseInt(digits, 10);
                             if (!isNaN(cnt)) total += cnt;
                         }
                     });
@@ -299,7 +301,7 @@
         const todayStr = today.toISOString().substring(0, 10);
         document.getElementById('settlementDate').value = todayStr;
 
-        const startDate = getSettlementStartDate() || "2020-01-01";
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
         document.getElementById('settlementStartInfo').innerText = startDate;
 
         const people = await getPeopleCountForPeriod(startDate, todayStr);
@@ -313,7 +315,7 @@
     window.updateSettlementPreview = async function() {
         const endDate = document.getElementById('settlementDate').value;
         if (!endDate) return;
-        const startDate = getSettlementStartDate() || "2020-01-01";
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
         const people = await getPeopleCountForPeriod(startDate, endDate);
         document.getElementById('settlementPeople').innerText = people + "명";
         document.getElementById('settlementAmount').innerText = (people * 9000).toLocaleString() + "원";
@@ -331,7 +333,7 @@
             return;
         }
 
-        const startDate = getSettlementStartDate() || "2020-01-01";
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
         const people = await getPeopleCountForPeriod(startDate, settlementDate);
         const amount = people * 9000;
         const commission = people * 1000;
@@ -405,10 +407,16 @@
                     <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span class="sr-value" style="color:#28a745;">${r.amount.toLocaleString()}원</span></div>
                     <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span class="sr-value" style="color:#e53e3e;">${r.commission.toLocaleString()}원</span></div>
                     <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">${r.account}</span></div>
-                    <button onclick="deleteSettlementRecord(${origIndex})" style="margin-top:8px; background:#e74c3c; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑️ 삭제</button>
+                    <button data-idx="${origIndex}" class="btn-delete-settlement" style="margin-top:8px; background:#e74c3c; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑️ 삭제</button>
                 </div>
             `;
         }).join('');
+
+        container.querySelectorAll('.btn-delete-settlement').forEach(btn => {
+            btn.addEventListener('click', function() {
+                window.deleteSettlementRecord(parseInt(this.dataset.idx, 10));
+            });
+        });
     }
 
     window.deleteSettlementRecord = function(index) {
