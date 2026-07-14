@@ -283,10 +283,10 @@
                                     const dd = String(d.getDate()).padStart(2, '0');
                                     fCreatedAt = `${yyyy}-${mm}-${dd}`;
                                 } else {
-                                    fCreatedAt = String(rawTime).trim().length >= 10 ? String(rawTime).trim().substring(0, 10) : new Date().toISOString().substring(0, 10);
+                                    fCreatedAt = String(rawTime).trim().length >= 10 ? String(rawTime).trim().substring(0, 10) : getLocalDateStr();
                                 }
                             } else {
-                                fCreatedAt = new Date().toISOString().substring(0, 10);
+                                fCreatedAt = getLocalDateStr();
                             }
                         } else {
                             fCreatedAt = fCreatedAt.substring(0, 10);
