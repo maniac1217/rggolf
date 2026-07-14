@@ -404,17 +404,28 @@
             return;
         }
 
+        const escapeHtml = (v) =>
+            String(v ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[c]));
         const reversed = [...records].reverse();
         container.innerHTML = reversed.map((r, i) => {
             const origIndex = records.length - 1 - i;
+            const people = Number(r.people) || 0;
+            const amount = Number(r.amount) || 0;
+            const commission = Number(r.commission) || 0;
             return `
                 <div class="settlement-record-card">
-                    <div class="sr-row"><span class="sr-label">정산시작일</span><span class="sr-value">${r.startDate}</span></div>
-                    <div class="sr-row"><span class="sr-label">정산완료일</span><span class="sr-value">${r.endDate}</span></div>
-                    <div class="sr-row"><span class="sr-label">인원</span><span class="sr-value" style="color:#2b6cb0;">${r.people}명</span></div>
-                    <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span class="sr-value" style="color:#28a745;">${r.amount.toLocaleString()}원</span></div>
-                    <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span class="sr-value" style="color:#e53e3e;">${r.commission.toLocaleString()}원</span></div>
-                    <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">${r.account}</span></div>
+                    <div class="sr-row"><span class="sr-label">정산시작일</span><span class="sr-value">${escapeHtml(r.startDate)}</span></div>
+                    <div class="sr-row"><span class="sr-label">정산완료일</span><span class="sr-value">${escapeHtml(r.endDate)}</span></div>
+                    <div class="sr-row"><span class="sr-label">인원</span><span class="sr-value" style="color:#2b6cb0;">${people}명</span></div>
+                    <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span class="sr-value" style="color:#28a745;">${amount.toLocaleString()}원</span></div>
+                    <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span class="sr-value" style="color:#e53e3e;">${commission.toLocaleString()}원</span></div>
+                    <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">${escapeHtml(r.account)}</span></div>
                     <button data-idx="${origIndex}" class="btn-delete-settlement" style="margin-top:8px; background:#e74c3c; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑️ 삭제</button>
                 </div>
             `;
