@@ -191,6 +191,15 @@
     const SETTLEMENT_ACCOUNT = "수협 101-023-410261 박시연";
     const SETTLEMENT_FALLBACK_START = "2020-01-01";
 
+    // 로컬 시간 기준 날짜 문자열 반환 (YYYY-MM-DD)
+    function getLocalDateStr(date) {
+        const d = date || new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
     // 로컬 데이터베이스 커넥션 초기화 함수
     function initIndexedDB() {
         return new Promise((resolve, reject) => {
@@ -297,8 +306,7 @@
 
     window.openSettlementModal = async function() {
         const modal = document.getElementById('settlementModal');
-        const today = new Date();
-        const todayStr = today.toISOString().substring(0, 10);
+        const todayStr = getLocalDateStr();
         document.getElementById('settlementDate').value = todayStr;
 
         const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
@@ -345,7 +353,7 @@
             amount: amount,
             commission: commission,
             account: SETTLEMENT_ACCOUNT,
-            savedAt: new Date().toISOString().substring(0, 10)
+            savedAt: getLocalDateStr()
         };
 
         const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
@@ -615,7 +623,7 @@
             return;
         }
 
-        const today = new Date().toISOString().substring(0, 10);
+        const today = getLocalDateStr();
         document.getElementById('startDate').value = settlementStart;
         document.getElementById('endDate').value = today;
         window.fetchData();
