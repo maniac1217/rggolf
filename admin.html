@@ -54,6 +54,15 @@
         
         /* 마스터 인양 버튼 */
         .btn-emergency { background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 15px; }
+        
+        /* 자동 입력 팝업 스타일 */
+        .autocomplete-suggestion { background: #fff; border: 1px solid #ddd; border-top: none; position: absolute; z-index: 1000; max-height: 150px; overflow-y: auto; width: 45%; margin-top: -8px; border-radius: 0 0 8px 8px; }
+        .autocomplete-suggestion div { padding: 8px 10px; cursor: pointer; font-size: 0.9rem; color: #2c3e50; }
+        .autocomplete-suggestion div:hover { background: #ecf0f1; }
+        .autocomplete-suggestion .suggestion-item-name { font-weight: bold; color: #2b6cb0; }
+        .autocomplete-suggestion .suggestion-item-phone { font-size: 0.8rem; color: #7f8c8d; }
+        
+        .form-grid-wrapper { position: relative; }
     </style>
 </head>
 <body>
@@ -72,7 +81,10 @@
         <div class="insert-box">
             <h3>➕ 누락 예약 자료 수동 입력</h3>
             <div class="form-grid">
-                <input type="text" id="insName" placeholder="예약자명">
+                <div class="form-grid-wrapper" style="position: relative;">
+                    <input type="text" id="insName" placeholder="예약자명" onkeyup="showPhoneSuggestion()">
+                    <div id="phoneSuggestion" class="autocomplete-suggestion" style="display: none;"></div>
+                </div>
                 <input type="tel" id="insPhone" placeholder="연락처 (숫자만)">
                 <input type="text" id="insTime" placeholder="예약시간 (예: 14:30)">
                 <input type="text" id="insCount" placeholder="인원수 (예: 4)">
@@ -171,6 +183,84 @@
         document.getElementById('startDate').valueAsDate = oneMonthAgo;
         document.getElementById('insDate').valueAsDate = today; 
     }
+
+    // 📱 이름 입력 시 전화번호 자동 입력 기능
+    window.showPhoneSuggestion = function() {
+        const nameInput = document.getElementById('insName').value.trim();
+        const suggestionBox = document.getElementById('phoneSuggestion');
+        
+        if (!nameInput || nameInput.length === 0) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        if (!idb) {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        try {
+            const transaction = idb.transaction(["reservations"], "readonly");
+            const store = transaction.objectStore("reservations");
+            const request = store.getAll();
+
+            request.onsuccess = function(event) {
+                const allItems = event.target.result || [];
+                
+                // 입력한 이름과 일치하는 모든 예약 찾기
+                const matches = allItems.filter(item => {
+                    const source = (item.content && typeof item.content === 'object') ? item.content : item;
+                    const itemName = source.name || item.name || "";
+                    return itemName.toLowerCase().includes(nameInput.toLowerCase());
+                });
+
+                if (matches.length === 0) {
+                    suggestionBox.style.display = 'none';
+                    return;
+                }
+
+                // 중복 제거 (같은 이름의 여러 전화번호 표시)
+                const uniquePhones = {};
+                matches.forEach(item => {
+                    const source = (item.content && typeof item.content === 'object') ? item.content : item;
+                    const name = source.name || item.name || "";
+                    const phone = source.phone || item.phone || "-";
+                    
+                    if (phone !== "-" && !uniquePhones[phone]) {
+                        uniquePhones[phone] = name;
+                    }
+                });
+
+                if (Object.keys(uniquePhones).length === 0) {
+                    suggestionBox.style.display = 'none';
+                    return;
+                }
+
+                // 드롭다운 목록 생성
+                let html = "";
+                Object.entries(uniquePhones).forEach(([phone, name]) => {
+                    html += `
+                        <div onclick="selectPhoneNumber('${phone}')">
+                            <div class="suggestion-item-name">📞 ${phone}</div>
+                            <div class="suggestion-item-phone">${name}</div>
+                        </div>
+                    `;
+                });
+
+                suggestionBox.innerHTML = html;
+                suggestionBox.style.display = 'block';
+            };
+        } catch (err) {
+            console.error("자동 입력 오류:", err);
+            suggestionBox.style.display = 'none';
+        }
+    };
+
+    // 제안된 전화번호 선택
+    window.selectPhoneNumber = function(phone) {
+        document.getElementById('insPhone').value = phone;
+        document.getElementById('phoneSuggestion').style.display = 'none';
+    };
 
     // 📦 브라우저 고유 창고에서 기간별 데이터 파싱 및 안전 매핑 엔진
     window.fetchData = function() {
@@ -349,6 +439,7 @@
                 document.getElementById('insPhone').value = "";
                 document.getElementById('insTime').value = "";
                 document.getElementById('insCount').value = "";
+                document.getElementById('phoneSuggestion').style.display = 'none';
                 window.fetchData(); 
             };
         } catch (error) {
