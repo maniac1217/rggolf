@@ -29,6 +29,14 @@
         .form-grid input, .form-grid select { width: 100%; }
         .btn-insert { background: #2b6cb0; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
 
+        /* 정산 UI 스타일 */
+        .settlement-box { background: #fff3cd; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
+        .settlement-box h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: #856404; }
+        .settlement-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-settlement { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+        .btn-settlement:hover { background: #218838; }
+        .last-settlement-info { background: #f0f0f0; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 0.85rem; color: #333; }
+
         /* 건수 및 인원 합계 */
         .counter-box { display: flex; justify-content: space-between; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 10px 0; font-size: 0.95rem; border: 1px dashed #cbd5e0; }
         .counter-item { font-weight: bold; color: #2d3748; }
@@ -37,6 +45,7 @@
         
         .card-list { display: flex; flex-direction: column; gap: 12px; }
         .card { background: #fff; border: 1px solid #e1e8ed; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .card.settled { border-left: 4px solid #28a745; background: #f0fdf4; }
         .card-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #f1f2f6; padding-bottom: 8px; margin-bottom: 8px; }
         .card-time { color: #27ae60; }
         .card-body p { margin: 8px 0; font-size: 0.95rem; }
@@ -100,6 +109,17 @@
             <button onclick="insertReservationToLocal()" class="btn-insert">로컬 저장소에 즉시 추가</button>
         </div>
 
+        <div class="settlement-box">
+            <h3>💰 게임비 정산 관리</h3>
+            <div class="settlement-controls">
+                <button onclick="openSettlementModal()" class="btn-settlement">📋 정산완료 기록하기</button>
+                <button onclick="resetSettlementDate()" class="btn-settlement" style="background: #dc3545;">🔄 정산 초기화</button>
+            </div>
+            <div id="settlementInfo" class="last-settlement-info">
+                최근 정산: <span id="lastSettlementDate" style="font-weight: bold; color: #28a745;">기록 없음</span>
+            </div>
+        </div>
+
         <div class="filter-box">
             <div class="date-inputs">
                 <label>시작</label>
@@ -108,6 +128,7 @@
                 <input type="date" id="endDate">
             </div>
             <button onclick="fetchData()" class="btn-search">기간 설정 조회</button>
+            <button onclick="fetchDataAfterSettlement()" class="btn-search" style="background: #17a2b8;">📊 최근 정산 이후 조회</button>
         </div>
 
         <div class="counter-box">
@@ -125,10 +146,24 @@
     </div>
 </div>
 
+<!-- 정산 모달 -->
+<div id="settlementModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; display:none; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); max-width:400px; width:90%;">
+        <h2 style="margin:0 0 20px 0; color:#28a745; font-size:1.2rem;">📋 정산완료 기록</h2>
+        <p style="margin:0 0 15px 0; color:#666; font-size:0.9rem;">정산을 완료한 날짜를 선택하세요.</p>
+        <input type="date" id="settlementDate" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1rem; margin-bottom:15px;">
+        <div style="display:flex; gap:10px;">
+            <button onclick="saveSettlementDate()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">확인</button>
+            <button onclick="closeSettlementModal()" style="flex:1; background:#ccc; color:#333; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">취소</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     let idb = null;
     let currentFetchedData = []; 
     const BANK_ACCOUNT = "카카오뱅크 7942-25-80482 (예금주: 한용섭)";
+    const SETTLEMENT_KEY = "lastSettlementDate";
 
     // 로컬 데이터베이스 커넥션 초기화 함수
     function initIndexedDB() {
@@ -158,6 +193,7 @@
             document.getElementById('mainDashboard').style.display = 'block';
             initDates();
             initIndexedDB().then(() => {
+                displayLastSettlementDate();
                 window.fetchData(); 
             }).catch(err => alert(err));
         } else {
@@ -182,6 +218,65 @@
         document.getElementById('endDate').valueAsDate = today;
         document.getElementById('startDate').valueAsDate = oneMonthAgo;
         document.getElementById('insDate').valueAsDate = today; 
+    }
+
+    // 💰 정산 관련 함수들
+    window.openSettlementModal = function() {
+        const modal = document.getElementById('settlementModal');
+        const settlementDate = document.getElementById('settlementDate');
+        settlementDate.valueAsDate = new Date();
+        modal.style.display = 'flex';
+    };
+
+    window.closeSettlementModal = function() {
+        document.getElementById('settlementModal').style.display = 'none';
+    };
+
+    window.saveSettlementDate = function() {
+        const settlementDate = document.getElementById('settlementDate').value;
+        if (!settlementDate) {
+            alert("정산 날짜를 선택해주세요.");
+            return;
+        }
+
+        localStorage.setItem(SETTLEMENT_KEY, settlementDate);
+        alert(`✅ 정산완료 기록: ${settlementDate}`);
+        displayLastSettlementDate();
+        closeSettlementModal();
+        window.fetchData();
+    };
+
+    window.resetSettlementDate = function() {
+        if (confirm("🚨 정산 기록을 초기화하시겠습니까? (모든 데이터가 포함됩니다)")) {
+            localStorage.removeItem(SETTLEMENT_KEY);
+            alert("정산 기록이 초기화되었습니다.");
+            displayLastSettlementDate();
+            window.fetchData();
+        }
+    };
+
+    function displayLastSettlementDate() {
+        const lastDate = localStorage.getItem(SETTLEMENT_KEY);
+        const display = document.getElementById('lastSettlementDate');
+        if (lastDate) {
+            const nextDay = new Date(lastDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextDateStr = nextDay.toISOString().substring(0, 10);
+            display.innerText = `${lastDate} (집계: ${nextDateStr} 이후)`;
+            display.style.color = '#28a745';
+        } else {
+            display.innerText = '기록 없음 (전체 집계)';
+            display.style.color = '#e53e3e';
+        }
+    }
+
+    function getSettlementStartDate() {
+        const lastDate = localStorage.getItem(SETTLEMENT_KEY);
+        if (!lastDate) return null;
+        
+        const nextDay = new Date(lastDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        return nextDay.toISOString().substring(0, 10);
     }
 
     // 📱 이름 입력 시 전화번호 자동 입력 기능
@@ -354,6 +449,20 @@
         }
     };
 
+    // 🎯 최근 정산 이후 데이터만 조회
+    window.fetchDataAfterSettlement = function() {
+        const settlementStart = getSettlementStartDate();
+        if (!settlementStart) {
+            alert("정산 기록이 없습니다. 먼저 정산을 기록해주세요.");
+            return;
+        }
+
+        const today = new Date().toISOString().substring(0, 10);
+        document.getElementById('startDate').value = settlementStart;
+        document.getElementById('endDate').value = today;
+        window.fetchData();
+    };
+
     // 🚨 날짜 필터 무시하고 창고 안의 데이터 무조건 다 긁어오는 강제 인양 엔진
     window.forceLoadAllData = function() {
         if (!idb) {
@@ -469,11 +578,15 @@
         }
 
         data.forEach(item => {
+            const isSettled = item.status === "정산완료";
+            const cardClass = isSettled ? "card settled" : "card";
+            const statusBadge = isSettled ? `<span style="background:#28a745; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">✅ 정산됨</span>` : `<span id="status-text-${item.id}" style="font-weight:bold; color:#2b6cb0;">[${item.status}]</span>`;
+            
             const cardHtml = `
-                <div class="card" id="card-${item.id}">
+                <div class="${cardClass}" id="card-${item.id}">
                     <div class="card-header">
                         <span class="card-time">⏰ ${item.time}</span>
-                        <span id="status-text-${item.id}" style="font-weight:bold; color:#2b6cb0;">[${item.status}]</span>
+                        ${statusBadge}
                     </div>
                     <div class="card-body">
                         <p><strong>예약자:</strong> ${item.name}</p>
@@ -559,7 +672,7 @@
                 if (newCount.trim() !== "" && !newCount.includes('명')) {
                     newCount = newCount.trim() + "명";
                 }
-                const newStatus = prompt("변경할 접수 상태를 입력하세요:", source.status || item.status);
+                const newStatus = prompt("변경할 접수 상태를 입력하세요:\n- 대기중\n- 예약확정\n- 미입금\n- 취소건\n- 정산완료", source.status || item.status);
                 if (newStatus === null) return;
 
                 const numericCount = parseInt(newCount.replace(/[^0-9]/g, ""), 10) || 1;
@@ -605,6 +718,14 @@
             }
         }
     };
+
+    // 모달 외부 클릭 시 닫기
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('settlementModal');
+        if (event.target === modal) {
+            closeSettlementModal();
+        }
+    });
 </script>
 </body>
 </html>
