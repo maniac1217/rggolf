@@ -290,7 +290,7 @@
         async function importGoogleSheetToProgram() {
             const sheetUrl = document.getElementById("input-sheet-url").value.trim();
             if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-            if (!idb) return alert("데이터베이스 창고 연결을 확인�� 수 없습니다.");
+            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
             
             if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) {
                 return;
@@ -361,7 +361,7 @@
                     });
 
                     transaction.oncomplete = function() {
-                        alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 조회 화면(admin.html)으로 돌아가시면 데이터가 실시간 갱신되어 있습니다.`);
+                        alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 조회 화면(admin.html)으로 돌아가시면 데이터가 실시간으로 반영되어 보입니다.`);
                         document.getElementById("input-sheet-url").value = "";
                         
                         localStorage.setItem("db_updated_signal", Date.now());
