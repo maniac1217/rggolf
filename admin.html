@@ -75,6 +75,15 @@
         .autocomplete-suggestion .suggestion-item-phone { font-size: 0.8rem; color: #7f8c8d; }
         
         .form-grid-wrapper { position: relative; }
+
+        /* 정산 기록 내역 스타일 */
+        .settlement-records-box { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #dee2e6; }
+        .settlement-records-box h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: #343a40; }
+        .settlement-record-card { background: white; border: 1px solid #dee2e6; border-left: 4px solid #28a745; border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 0.85rem; }
+        .sr-row { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+        .sr-label { color: #666; }
+        .sr-value { font-weight: bold; color: #2d3748; }
+        .sr-account { font-size: 0.8rem; color: #856404; }
     </style>
 </head>
 <body>
@@ -123,6 +132,11 @@
             </div>
         </div>
 
+        <div class="settlement-records-box">
+            <h3>📑 정산 기록 내역</h3>
+            <div id="settlementRecordsList"><p style="text-align:center;color:#95a5a6;padding:10px;">정산 기록이 없습니다.</p></div>
+        </div>
+
         <div class="filter-box">
             <div class="date-inputs">
                 <label>시작</label>
@@ -150,13 +164,22 @@
 </div>
 
 <!-- 정산 모달 -->
-<div id="settlementModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; display:none; align-items:center; justify-content:center;">
-    <div style="background:white; padding:30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); max-width:400px; width:90%;">
-        <h2 style="margin:0 0 20px 0; color:#28a745; font-size:1.2rem;">📋 정산완료 기록</h2>
-        <p style="margin:0 0 15px 0; color:#666; font-size:0.9rem;">정산을 완료한 날짜를 선택하세요.</p>
-        <input type="date" id="settlementDate" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1rem; margin-bottom:15px;">
+<div id="settlementModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:25px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); max-width:420px; width:90%;">
+        <h2 style="margin:0 0 15px 0; color:#28a745; font-size:1.2rem;">📋 정산완료 기록</h2>
+        <div style="background:#f8f9fa; padding:14px; border-radius:8px; margin-bottom:15px; font-size:0.9rem; display:flex; flex-direction:column; gap:8px;">
+            <div class="sr-row"><span class="sr-label">정산시작일</span><span id="settlementStartInfo" class="sr-value"></span></div>
+            <div class="sr-row">
+                <span class="sr-label">정산완료일</span>
+                <input type="date" id="settlementDate" style="border:1px solid #ddd; border-radius:6px; padding:4px 8px; font-size:0.9rem;" onchange="updateSettlementPreview()">
+            </div>
+            <div class="sr-row"><span class="sr-label">인원</span><span id="settlementPeople" class="sr-value" style="color:#2b6cb0;"></span></div>
+            <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span id="settlementAmount" class="sr-value" style="color:#28a745;"></span></div>
+            <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span id="settlementCommission" class="sr-value" style="color:#e53e3e;"></span></div>
+            <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">수협 101-023-410261 박시연</span></div>
+        </div>
         <div style="display:flex; gap:10px;">
-            <button onclick="saveSettlementDate()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">확인</button>
+            <button onclick="saveSettlementDate()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">✅ 정산 기록 저장</button>
             <button onclick="closeSettlementModal()" style="flex:1; background:#ccc; color:#333; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">취소</button>
         </div>
     </div>
@@ -167,6 +190,18 @@
     let currentFetchedData = []; 
     const BANK_ACCOUNT = "카카오뱅크 7942-25-80482 (예금주: 한용섭)";
     const SETTLEMENT_KEY = "lastSettlementDate";
+    const SETTLEMENT_RECORDS_KEY = "settlementRecords";
+    const SETTLEMENT_ACCOUNT = "수협 101-023-410261 박시연";
+    const SETTLEMENT_FALLBACK_START = "2020-01-01";
+
+    // 로컬 시간 기준 날짜 문자열 반환 (YYYY-MM-DD)
+    function getLocalDateStr(date) {
+        const d = date || new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
 
     // 로컬 데이터베이스 커넥션 초기화 함수
     function initIndexedDB() {
@@ -197,6 +232,7 @@
             initDates();
             initIndexedDB().then(() => {
                 displayLastSettlementDate();
+                displaySettlementRecords();
                 window.fetchData(); 
             }).catch(err => alert(err));
         } else {
@@ -224,27 +260,113 @@
     }
 
     // 💰 정산 관련 함수들
-    window.openSettlementModal = function() {
+
+    // 기간 내 총 인원 합산 (IndexedDB 조회)
+    function getPeopleCountForPeriod(startDate, endDate) {
+        return new Promise((resolve) => {
+            if (!idb) { resolve(0); return; }
+            try {
+                const transaction = idb.transaction(["reservations"], "readonly");
+                const store = transaction.objectStore("reservations");
+                const request = store.getAll();
+                request.onsuccess = function(event) {
+                    const allItems = event.target.result || [];
+                    let total = 0;
+                    allItems.forEach(item => {
+                        let source = (item.content && typeof item.content === 'object') ? item.content : item;
+                        let fCreatedAt = source.createdAt ? String(source.createdAt).trim() : "";
+                        if (!fCreatedAt || fCreatedAt.length < 10 ||
+                            ["Thu","Fri","Sat","Sun","Mon","Tue","Wed"].some(d => fCreatedAt.includes(d))) {
+                            let rawTime = source.time || item.time || "";
+                            if (rawTime) {
+                                const d = new Date(rawTime);
+                                if (!isNaN(d.getTime())) {
+                                    const yyyy = d.getFullYear();
+                                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                    const dd = String(d.getDate()).padStart(2, '0');
+                                    fCreatedAt = `${yyyy}-${mm}-${dd}`;
+                                } else {
+                                    fCreatedAt = String(rawTime).trim().length >= 10 ? String(rawTime).trim().substring(0, 10) : getLocalDateStr();
+                                }
+                            } else {
+                                fCreatedAt = getLocalDateStr();
+                            }
+                        } else {
+                            fCreatedAt = fCreatedAt.substring(0, 10);
+                        }
+                        if (fCreatedAt >= startDate && fCreatedAt <= endDate) {
+                            const digits = (source.count || item.count || "1").toString().replace(/[^0-9]/g, "") || "1";
+                            const cnt = parseInt(digits, 10);
+                            if (!isNaN(cnt)) total += cnt;
+                        }
+                    });
+                    resolve(total);
+                };
+                request.onerror = function() { resolve(0); };
+            } catch(e) { resolve(0); }
+        });
+    }
+
+    window.openSettlementModal = async function() {
         const modal = document.getElementById('settlementModal');
-        const settlementDate = document.getElementById('settlementDate');
-        settlementDate.valueAsDate = new Date();
+        const todayStr = getLocalDateStr();
+        document.getElementById('settlementDate').value = todayStr;
+
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
+        document.getElementById('settlementStartInfo').innerText = startDate;
+
+        const people = await getPeopleCountForPeriod(startDate, todayStr);
+        document.getElementById('settlementPeople').innerText = people + "명";
+        document.getElementById('settlementAmount').innerText = (people * 9000).toLocaleString() + "원";
+        document.getElementById('settlementCommission').innerText = (people * 1000).toLocaleString() + "원";
+
         modal.style.display = 'flex';
+    };
+
+    window.updateSettlementPreview = async function() {
+        const endDate = document.getElementById('settlementDate').value;
+        if (!endDate) return;
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
+        const people = await getPeopleCountForPeriod(startDate, endDate);
+        document.getElementById('settlementPeople').innerText = people + "명";
+        document.getElementById('settlementAmount').innerText = (people * 9000).toLocaleString() + "원";
+        document.getElementById('settlementCommission').innerText = (people * 1000).toLocaleString() + "원";
     };
 
     window.closeSettlementModal = function() {
         document.getElementById('settlementModal').style.display = 'none';
     };
 
-    window.saveSettlementDate = function() {
+    window.saveSettlementDate = async function() {
         const settlementDate = document.getElementById('settlementDate').value;
         if (!settlementDate) {
             alert("정산 날짜를 선택해주세요.");
             return;
         }
 
+        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
+        const people = await getPeopleCountForPeriod(startDate, settlementDate);
+        const amount = people * 9000;
+        const commission = people * 1000;
+
+        const newRecord = {
+            startDate: startDate,
+            endDate: settlementDate,
+            people: people,
+            amount: amount,
+            commission: commission,
+            account: SETTLEMENT_ACCOUNT,
+            savedAt: getLocalDateStr()
+        };
+
+        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
+        records.push(newRecord);
+        localStorage.setItem(SETTLEMENT_RECORDS_KEY, JSON.stringify(records));
+
         localStorage.setItem(SETTLEMENT_KEY, settlementDate);
-        alert(`✅ 정산완료 기록: ${settlementDate}`);
+        alert(`✅ 정산완료 기록: ${settlementDate}\n인원: ${people}명\n정산금액: ${amount.toLocaleString()}원\n수수료: ${commission.toLocaleString()}원\n입금계좌: ${SETTLEMENT_ACCOUNT}`);
         displayLastSettlementDate();
+        displaySettlementRecords();
         closeSettlementModal();
         window.fetchData();
     };
@@ -252,8 +374,10 @@
     window.resetSettlementDate = function() {
         if (confirm("🚨 정산 기록을 초기화하시겠습니까? (모든 데이터가 포함됩니다)")) {
             localStorage.removeItem(SETTLEMENT_KEY);
+            localStorage.removeItem(SETTLEMENT_RECORDS_KEY);
             alert("정산 기록이 초기화되었습니다.");
             displayLastSettlementDate();
+            displaySettlementRecords();
             window.fetchData();
         }
     };
@@ -272,6 +396,61 @@
             display.style.color = '#e53e3e';
         }
     }
+
+    function displaySettlementRecords() {
+        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
+        const container = document.getElementById('settlementRecordsList');
+        if (!container) return;
+
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:#95a5a6;padding:10px;">정산 기록이 없습니다.</p>';
+            return;
+        }
+
+        const escapeHtml = (v) =>
+            String(v ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[c]));
+        const reversed = [...records].reverse();
+        container.innerHTML = reversed.map((r, i) => {
+            const origIndex = records.length - 1 - i;
+            const people = Number(r.people) || 0;
+            const amount = Number(r.amount) || 0;
+            const commission = Number(r.commission) || 0;
+            return `
+                <div class="settlement-record-card">
+                    <div class="sr-row"><span class="sr-label">정산시작일</span><span class="sr-value">${escapeHtml(r.startDate)}</span></div>
+                    <div class="sr-row"><span class="sr-label">정산완료일</span><span class="sr-value">${escapeHtml(r.endDate)}</span></div>
+                    <div class="sr-row"><span class="sr-label">인원</span><span class="sr-value" style="color:#2b6cb0;">${people}명</span></div>
+                    <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span class="sr-value" style="color:#28a745;">${amount.toLocaleString()}원</span></div>
+                    <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span class="sr-value" style="color:#e53e3e;">${commission.toLocaleString()}원</span></div>
+                    <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">${escapeHtml(r.account)}</span></div>
+                    <button data-idx="${origIndex}" class="btn-delete-settlement" style="margin-top:8px; background:#e74c3c; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑️ 삭제</button>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.btn-delete-settlement').forEach(btn => {
+            btn.addEventListener('click', function() {
+                window.deleteSettlementRecord(parseInt(this.dataset.idx, 10));
+            });
+        });
+    }
+
+    window.deleteSettlementRecord = function(index) {
+        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
+        if (!Number.isInteger(index) || index < 0 || index >= records.length) return;
+
+        if (confirm("해당 정산 기록을 삭제하시겠습니까?")) {
+            records.splice(index, 1);
+            localStorage.setItem(SETTLEMENT_RECORDS_KEY, JSON.stringify(records));
+            displaySettlementRecords();
+        }
+    };
 
     function getSettlementStartDate() {
         const lastDate = localStorage.getItem(SETTLEMENT_KEY);
@@ -460,7 +639,7 @@
             return;
         }
 
-        const today = new Date().toISOString().substring(0, 10);
+        const today = getLocalDateStr();
         document.getElementById('startDate').value = settlementStart;
         document.getElementById('endDate').value = today;
         window.fetchData();
