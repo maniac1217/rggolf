@@ -20,6 +20,11 @@
         
         .flex-inputs { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+        
+        .export-option { background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
+        .export-option h4 { margin: 0 0 10px 0; color: #856404; }
+        .export-option p { margin: 5px 0; font-size: 13px; color: #333; }
+        .export-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -58,13 +63,24 @@
         </div>
     </div>
 
-    <div class="box-container" style="display: flex; gap: 10px;">
-        <button id="btn-google-open" class="btn-action btn-export">🌐 구글시트로 표준 규격 내보내기</button> 
-        <a href="admin.html" class="btn-action btn-back" style="line-height: 23px;">⬅ 관리자 화면으로 돌아가기</a>
+    <div class="box-container">
+        <div class="export-option">
+            <h4>📊 내보내기 옵션</h4>
+            <p style="margin: 0; font-size: 12px; color: #666;">✅ GAS 연동 방법: Google Apps Script를 통해 자동으로 구글시트 생성</p>
+            <p style="margin: 5px 0; font-size: 12px; color: #666;">✅ CSV 다운로드: 로컬에 CSV 파일을 다운로드한 후 직접 구글시트에 업로드</p>
+        </div>
+        <div class="export-buttons" style="display: flex; gap: 10px;">
+            <button id="btn-google-open" class="btn-action btn-export">🌐 GAS 방식: 구글시트 자동 생성</button>
+            <button id="btn-csv-export" class="btn-action btn-export" style="background-color: #34A853;">📥 CSV 방식: 로컬 다운로드</button>
+        </div>
+    </div>
+    
+    <div class="box-container">
+        <a href="admin.html" class="btn-action btn-back">⬅ 관리자 화면으로 돌아가기</a>
     </div>
 
     <script type="module">
-        // Google Apps Script 웹 앱 URL (기존 제공 주소 유지)
+        // 🔥 Google Apps Script 웹 앱 URL
         const googleScriptUrl = "https://script.google.com/macros/s/AKfycbyBmq3ePMStEDy9pKiJELdXLnG0ulYwUBsNHFNUAwDODSQQphOnhzaBo1meUSqhpiKEYg/exec";
 
         const statusDiv = document.getElementById("status");
@@ -95,7 +111,7 @@
                 const store = transaction.objectStore("reservations");
                 const countRequest = store.count();
                 countRequest.onsuccess = function() {
-                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [reservations]</b> 연결 성공! (현재 창고 자료: <span style="color:red; font-size:16px;">${countRequest.result}</span>개)`;
+                    statusDiv.innerHTML = `상태: 🟢 <b>RG_Golf_DB [reservations]</b> 연결 성공! (현재 창고 자료: <span style="color:red; font-size:16px;">${countRequest.result}건</span>)`;
                 };
             } catch (err) { console.error(err); }
         }
@@ -155,7 +171,7 @@
         }
         document.getElementById("btn-view-db").addEventListener("click", viewIndexedDBData);
 
-        // 🌐 1. 구글시트로 표준 규격 내보내기 (GAS 연동)
+        // 🌐 1. GAS 연동 방식: 구글시트로 표준 규격 내보내기
         async function exportAndOpenGoogleSheet() {
             if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
             try {
@@ -165,6 +181,7 @@
                 request.onsuccess = function(e) {
                     const items = e.target.result || [];
                     if (items.length === 0) return alert("보낼 데이터가 없습니다.");
+                    
                     const parsedRows = items.map(item => {
                         return {
                             id: item.id ? String(item.id).trim() : "ID_" + Math.floor(Math.random() * 100000),
@@ -176,25 +193,47 @@
                             createdAt: item.createdAt ? String(item.createdAt).substring(0, 10) : new Date().toISOString().substring(0, 10)
                         };
                     });
+                    
                     const openBtn = document.getElementById("btn-google-open");
                     openBtn.innerText = "⏳ 구글 시트 생성 및 이동 중...";
                     openBtn.disabled = true;
 
+                    // 🔧 개선된 fetch 호출 (타임아웃 & 에러 핸들링 추가)
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
                     fetch(googleScriptUrl, {
                         method: "POST",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action: "createGoogleSheet", csvData: parsedRows })
+                        headers: { 
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ action: "createGoogleSheet", csvData: parsedRows }),
+                        mode: 'cors',
+                        signal: controller.signal
                     })
-                    .then(res => res.json())
+                    .then(res => {
+                        clearTimeout(timeoutId);
+                        if (!res.ok) throw new Error(`HTTP 오류: ${res.status}`);
+                        return res.json();
+                    })
                     .then(resultJson => {
                         if (resultJson.success && resultJson.sheetUrl) {
                             alert("✅ 표준 규격 구글 시트 생성이 완료되었습니다! 새 창에서 시트를 엽니다.");
                             window.open(resultJson.sheetUrl, "_blank");
-                        } else { alert("구글 시트 생성 실패: " + JSON.stringify(resultJson)); }
+                        } else { 
+                            alert("구글 시트 생성 실패:\n" + (resultJson.error || JSON.stringify(resultJson))); 
+                        }
                     })
-                    .catch(err => alert("전송 에러: " + err.message))
+                    .catch(err => {
+                        clearTimeout(timeoutId);
+                        if (err.name === 'AbortError') {
+                            alert("❌ 요청 시간 초과 (10초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인:\n1. Google Apps Script URL이 잘못됨\n2. GAS 스크립트가 배포되지 않음\n3. 네트워크 연결 문제\n\n해결방법:\n- URL 확인: script.google.com 콘솔에서 배포 확인\n- CSV 다운로드 방식 사용 권장");
+                        } else {
+                            alert("❌ 전송 에러: " + err.message + "\n\nCSV 다운로드 방식을 사용해주세요.");
+                        }
+                    })
                     .finally(() => {
-                        openBtn.innerText = "🌐 구글시트로 표준 규격 내보내기";
+                        openBtn.innerText = "🌐 GAS 방식: 구글시트 자동 생성";
                         openBtn.disabled = false;
                     });
                 };
@@ -202,86 +241,129 @@
         }
         document.getElementById("btn-google-open").addEventListener("click", exportAndOpenGoogleSheet);
 
-        // 📥 2. 구글시트 주소로부터 데이터를 덤프 받아와 로컬창고 복원
+        // 📥 2. CSV 다운로드 방식: 로컬 파일로 다운로드
+        async function exportToCSV() {
+            if (!idb) return alert("데이터베이스가 연결되지 않았습니다.");
+            try {
+                const transaction = idb.transaction(["reservations"], "readonly");
+                const store = transaction.objectStore("reservations");
+                const request = store.getAll();
+                
+                request.onsuccess = function(e) {
+                    const items = e.target.result || [];
+                    if (items.length === 0) return alert("다운로드할 데이터가 없습니다.");
+                    
+                    // CSV 헤더
+                    let csvContent = "예약일시,상태,예약자명,인원수,연락처\n";
+                    
+                    // 데이터 행
+                    items.forEach(item => {
+                        const row = [
+                            `"${item.time || ''}"`,
+                            `"${item.status || '대기'}"`,
+                            `"${item.name || '무명'}"`,
+                            `"${item.count || '1명'}"`,
+                            `"${item.phone || '-'}"`
+                        ].join(",");
+                        csvContent += row + "\n";
+                    });
+                    
+                    // BOM 추가 (한글 인코딩 보장)
+                    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `알지골프_예약리스트_${new Date().toISOString().substring(0, 10)}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert("✅ CSV 파일이 다운로드되었습니다!\n\n다음 단계:\n1. Google Sheets 열기\n2. [파일] > [가져오기]\n3. CSV 파일 선택 후 업로드\n4. 임포트 완료!");
+                };
+            } catch (err) { alert("오류: " + err.message); }
+        }
+        document.getElementById("btn-csv-export").addEventListener("click", exportToCSV);
+
+        // 📥 3. 구글시트 주소로부터 데이터를 덤프 받아와 로컬창고 복원
         async function importGoogleSheetToProgram() {
             const sheetUrl = document.getElementById("input-sheet-url").value.trim();
             if (!sheetUrl) return alert("구글 스프레드시트의 전체 주소(URL)를 입력해주세요.");
-            if (!idb) return alert("데이터베이스 창고 연결을 확인할 수 없습니다.");
+            if (!idb) return alert("데이터베이스 창고 연결을 확인�� 수 없습니다.");
             
-            if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) return;
+            if (!confirm("🚨 경고: 복원 시작 전 현재 창고(IndexedDB)의 기존 데이터를 완전히 싹 비우고, 구글 시트 장부 데이터로 새롭게 다시 채웁니다. 진행하시겠습니까?")) {
+                return;
+            }
 
             const importBtn = document.getElementById("btn-import-sheet");
             try {
                 importBtn.innerText = "⏳ 창고 비우기 및 데이터 주입 중...";
                 importBtn.disabled = true;
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
                 const response = await fetch(googleScriptUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl }),
+                    mode: 'cors',
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error(`HTTP 오류: ${response.status}`);
 
                 const resultJson = JSON.parse(await response.text());
                 if (!resultJson.success || !resultJson.data) throw new Error(resultJson.message || "데이터 확인 실패");
 
                 const transaction = idb.transaction(["reservations"], "readwrite");
                 const store = transaction.objectStore("reservations");
-
                 const clearRequest = store.clear();
                 
                 clearRequest.onsuccess = function() {
                     let importCount = 0;
 
-                    // 📥 [수정본] 구글시트에서 데이터를 가져와 IndexedDB 규격에 완벽히 맞춰 주입하는 로직
-// 📥 [최종 수정본] 에러 요소를 완벽히 제거한 안전한 데이터 주입 로직
-resultJson.data.forEach(row => {
-    // 1. 데이터 원본 위치 확보
-    let source = (row.content && typeof row.content === 'object') ? row.content : row;
-    
-    // 2. 필수 데이터 검증 (이름과 시간이 없으면 스킵)
-    let fName = source.name || source.Name || source["이름"] || "";
-    let fTime = source.time || source.Time || source["시간"] || "";
-    if (!fName || !fTime) return; 
+                    resultJson.data.forEach(row => {
+                        let source = (row.content && typeof row.content === 'object') ? row.content : row;
+                        
+                        let fName = source.name || source.Name || source["이름"] || "";
+                        let fTime = source.time || source.Time || source["시간"] || "";
+                        if (!fName || !fTime) return; 
 
-    // 3. [KEY 해결] 구글시트에 id가 없으면, 현재 시간 기반으로 고유 ID 자동 부여
-    let fId = source.id || source.Id || row.id || "";
-    fId = String(fId).trim();
-    if (!fId || fId === "undefined" || fId === "null") {
-        // 시간 기반 고유 ID + 랜덤 숫자로 절대 겹치지 않는 고유키 생성
-        fId = "REG_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-    }
+                        let fId = source.id || source.Id || row.id || "";
+                        fId = String(fId).trim();
+                        if (!fId || fId === "undefined" || fId === "null") {
+                            fId = "REG_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+                        }
 
-    // 4. [createdAt 해결] 생성일이 없으면 오늘 날짜 포맷(YYYY-MM-DD)으로 자동 부여
-    let fCreatedAt = source.createdAt || row.createdAt || "";
-    fCreatedAt = String(fCreatedAt).trim();
-    if (!fCreatedAt || fCreatedAt.length < 10) {
-        fCreatedAt = new Date().toISOString().substring(0, 10);
-    }
+                        let fCreatedAt = source.createdAt || row.createdAt || "";
+                        fCreatedAt = String(fCreatedAt).trim();
+                        if (!fCreatedAt || fCreatedAt.length < 10) {
+                            fCreatedAt = new Date().toISOString().substring(0, 10);
+                        }
 
-    // 5. 인원수 필드 안전하게 정리 (문자열 그대로 보존하여 에러 방지)
-    let fCount = source.count || "1명";
+                        let fCount = source.count || "1명";
 
-    // 🎯 [정리 완료] 중복 필드(numericCount, content 감싸기)를 모두 제거한 순수 데이터 객체
-    const verifiedObject = {
-        id: fId,                         // IndexedDB 기본키와 1:1 매칭 (필수)
-        name: String(fName).trim(),
-        phone: String(source.phone || "").replace(/[^0-9]/g, ''), 
-        count: String(fCount).trim(),    // 화면에 표시될 인원수
-        time: String(fTime).trim(),
-        status: String(source.status || "대기").trim(),
-        createdAt: fCreatedAt            // 자동 부여 또는 정제된 생성일
-    };
-    
-    // 로컬 창고에 주입
-    store.put(verifiedObject);
-    importCount++;
-});
+                        const verifiedObject = {
+                            id: fId,
+                            name: String(fName).trim(),
+                            phone: String(source.phone || "").replace(/[^0-9]/g, ''), 
+                            count: String(fCount).trim(),
+                            time: String(fTime).trim(),
+                            status: String(source.status || "대기").trim(),
+                            createdAt: fCreatedAt
+                        };
+                        
+                        store.put(verifiedObject);
+                        importCount++;
+                    });
 
                     transaction.oncomplete = function() {
                         alert(`🎉 기존 데이터 청소 완료 및 새 데이터 ${importCount}건 복원 성공!\n\n이제 조회 화면(admin.html)으로 돌아가시면 데이터가 실시간 갱신되어 있습니다.`);
                         document.getElementById("input-sheet-url").value = "";
                         
-                        // 크로스 탭 알림 신호 전달 (admin.html 자동 새로고침 트리거)
                         localStorage.setItem("db_updated_signal", Date.now());
                         
                         viewIndexedDBData();
@@ -294,7 +376,11 @@ resultJson.data.forEach(row => {
                 };
 
             } catch (error) { 
-                alert("오류: " + error.message); 
+                if (error.name === 'AbortError') {
+                    alert("❌ 요청 시간 초과 (10초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인: 구글시트 URL이 잘못되었거나 GAS 스크립트 오류");
+                } else {
+                    alert("오류: " + error.message); 
+                }
             } finally {
                 importBtn.innerText = "🔄 자료 구조 검증 후 복원";
                 importBtn.disabled = false;
