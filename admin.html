@@ -439,8 +439,10 @@
     }
 
     window.deleteSettlementRecord = function(index) {
+        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
+        if (!Number.isInteger(index) || index < 0 || index >= records.length) return;
+
         if (confirm("해당 정산 기록을 삭제하시겠습니까?")) {
-            const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
             records.splice(index, 1);
             localStorage.setItem(SETTLEMENT_RECORDS_KEY, JSON.stringify(records));
             displaySettlementRecords();
