@@ -208,7 +208,7 @@
                     fetch(googleScriptUrl, {
                         method: "POST",
                         headers: { 
-                            "Content-Type": "application/json",
+                            "Content-Type": "text/plain",
                         },
                         body: JSON.stringify({ action: "createGoogleSheet", csvData: parsedRows }),
                         mode: 'cors',
@@ -309,7 +309,7 @@
 
                 const response = await fetch(googleScriptUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl }),
                     mode: 'cors',
                     signal: controller.signal
