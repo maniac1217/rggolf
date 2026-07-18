@@ -203,15 +203,14 @@
 
                     // 🔧 개선된 fetch 호출 (타임아웃 & 에러 핸들링 추가)
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
 
                     fetch(googleScriptUrl, {
                         method: "POST",
                         headers: { 
-                            "Content-Type": "application/json",
+                            "Content-Type": "text/plain",
                         },
                         body: JSON.stringify({ action: "createGoogleSheet", csvData: parsedRows }),
-                        mode: 'cors',
                         signal: controller.signal
                     })
                     .then(res => {
@@ -230,7 +229,7 @@
                     .catch(err => {
                         clearTimeout(timeoutId);
                         if (err.name === 'AbortError') {
-                            alert("❌ 요청 시간 초과 (10초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인:\n1. Google Apps Script URL이 잘못됨\n2. GAS 스크립트가 배포되지 않음\n3. 네트워크 연결 문제\n\n해결방법:\n- URL 확인: script.google.com 콘솔에서 배포 확인\n- CSV 다운로드 방식 사용 권장");
+                            alert("❌ 요청 시간 초과 (30초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인:\n1. Google Apps Script URL이 잘못됨\n2. GAS 스크립트가 배포되지 않음\n3. 네트워크 연결 문제\n\n해결방법:\n- URL 확인: script.google.com 콘솔에서 배포 확인\n- CSV 다운로드 방식 사용 권장");
                         } else {
                             alert("❌ 전송 에러: " + err.message + "\n\nCSV 다운로드 방식을 사용해주세요.");
                         }
@@ -305,13 +304,12 @@
                 importBtn.disabled = true;
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
 
                 const response = await fetch(googleScriptUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify({ action: "importFromGoogleSheet", sheetUrl: sheetUrl }),
-                    mode: 'cors',
                     signal: controller.signal
                 });
 
@@ -380,7 +378,7 @@
 
             } catch (error) { 
                 if (error.name === 'AbortError') {
-                    alert("❌ 요청 시간 초과 (10초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인: 구글시트 URL이 잘못되었거나 GAS 스크립트 오류");
+                    alert("❌ 요청 시간 초과 (30초)\n\nGAS 스크립트가 응답하지 않습니다.\n원인: 구글시트 URL이 잘못되었거나 GAS 스크립트 오류");
                 } else {
                     alert("오류: " + error.message); 
                 }
