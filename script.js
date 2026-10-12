@@ -1,32 +1,12 @@
 // =======================================================
-// 1. 구글 파이어베이스 실시간 데이터베이스 엔진 로드
-// =======================================================
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-// =======================================================
-// 2. 구글 파이어베이스 설정값 세팅 완료
-// =======================================================
-const firebaseConfig = {
-    apiKey: "AIzaSyBwm5KpbfxaeQnyKm0MVsJH1ifyJzmnNRM",
-    authDomain: "rg-golf.firebaseapp.com",
-    databaseURL: "https://rg-golf-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "rg-golf",
-    storageBucket: "rg-golf.firebasestorage.app",
-    messagingSenderId: "382686211001",
-    appId: "1:382686211001:web:9c0dfba9c93b7966c9a468",
-    measurementId: "G-WT14V4N0EX"
-};
-
-// 구글 데이터베이스 초기화 및 연결
-const app = initializeApp(firebaseConfig);
-const firebaseDb = getDatabase(app);
-
-// =======================
 // 기본 상수 / 전역 변수
-// =======================
+// =======================================================
 const ADMIN_PHONE = "01099901806";   // 문자 수신 번호
 const CALL_PHONE  = "0538178800";    // 매장 전화번호
+
+// ★ Apps Script 웹앱 배포 후 나온 URL(/exec 로 끝남)을 여기에 넣으세요
+const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwr0ZNlG8n2AUyk9CXx01HPB6uwtvf9VnUYuOZaMOVOpmer55T-AeLtoSbmuJxSAuOLhg/exec";
+
 let db = null;                       // 로컬 IndexedDB 인스턴스
 
 // =======================
@@ -44,7 +24,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // =======================
-// 2. IndexedDB 초기화
+// 2. IndexedDB 초기화 (로컬 백업용)
 // =======================
 try {
     const request = indexedDB.open("RG_Golf_DB", 1);
@@ -104,7 +84,7 @@ function getSmsUrl() {
 }
 
 // =======================================================
-// 4. 구글 파이어베이스 전송 + 로컬 IndexedDB 저장 백업 통합 함수
+// 4. Google Sheets 전송 + 로컬 IndexedDB 백업 통합 함수
 // =======================================================
 async function saveAndSyncReservation(status) {
     try {
@@ -124,7 +104,7 @@ async function saveAndSyncReservation(status) {
             createdAt: new Date().toISOString()
         };
 
-        // 1단계: 컴퓨터 내부 로컬 저장소(IndexedDB) 백업
+        // 1단계: 로컬 IndexedDB 백업
         if (db) {
             const transaction = db.transaction(["reservations"], "readwrite");
             const store = transaction.objectStore("reservations");
@@ -134,16 +114,21 @@ async function saveAndSyncReservation(status) {
             console.warn("로컬 DB가 연결되지 않아 백업을 건너뜁니다.");
         }
 
-        // 2단계: 구글 초고속 파이어베이스 실시간 데이터베이스 서버로 직통 전송
-        console.log("구글 Realtime DB 전송 시작...");
-        const reservationsRef = ref(firebaseDb, 'reservations');
-        const newReservationRef = push(reservationsRef);
-        
-        await set(newReservationRef, newReservation);
-        console.log("🎉 구글 파이어베이스 서버에 데이터 저장 성공 완료!");
+        // 2단계: Google Sheets(Apps Script 웹앱)로 전송
+        // ※ Apps Script는 CORS preflight를 처리하지 못하므로
+        //   Content-Type을 text/plain 으로 보내 "단순 요청"으로 만듭니다.
+        console.log("Google Sheets 전송 시작...");
+        await fetch(SHEET_WEBAPP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(newReservation)
+        });
+        // no-cors 모드는 응답을 읽을 수 없으므로 예외가 없으면 전송된 것으로 간주
+        console.log("🎉 Google Sheets 전송 요청 완료!");
 
     } catch (error) {
-        console.error("데이터 구글 전송 또는 저장 중 에러 발생: ", error);
+        console.error("데이터 전송 또는 저장 중 에러 발생: ", error);
     }
 }
 
@@ -224,7 +209,7 @@ window.callToCenter = function() {
 
 // [계좌번호 복사 클릭시]
 window.copyAccount = function() {
-    const account = "79422580482"; 
+    const account = "79422580482";
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(account).then(() => {
