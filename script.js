@@ -1,56 +1,19 @@
-// =======================================================
-// 기본 상수 / 전역 변수
-// =======================================================
-const ADMIN_PHONE = "01099901806";   // 문자 수신 번호
-const CALL_PHONE  = "0538178800";    // 매장 전화번호
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxbvm2m3U9F1gmSee8gg-BMuApUDta1pLUoVQt9V6h0MipamOkPh71gqMQWCPGjqzF7bA/exec";
 
-// ★ Apps Script 웹앱 배포 후 나온 URL(/exec 로 끝남)을 여기에 넣으세요
-const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwr0ZNlG8n2AUyk9CXx01HPB6uwtvf9VnUYuOZaMOVOpmer55T-AeLtoSbmuJxSAuOLhg/exec";
+const ADMIN_PHONE = "01099901806";   
+const CALL_PHONE  = "0538178800";    
 
-let db = null;                       // 로컬 IndexedDB 인스턴스
-
-// =======================
-// 1. 예약 일시 기본값 세팅
-// =======================
 window.addEventListener('DOMContentLoaded', () => {
     const dtInput = document.getElementById('bookingTime');
     if (dtInput) {
         const now = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
             .toISOString()
-            .slice(0, 16); // "YYYY-MM-DDTHH:MM"
+            .slice(0, 16); 
         dtInput.value = now;
         dtInput.setAttribute('min', now);
     }
 });
 
-// =======================
-// 2. IndexedDB 초기화 (로컬 백업용)
-// =======================
-try {
-    const request = indexedDB.open("RG_Golf_DB", 1);
-
-    request.onupgradeneeded = function (event) {
-        db = event.target.result;
-        if (!db.objectStoreNames.contains("reservations")) {
-            db.createObjectStore("reservations", { keyPath: "id", autoIncrement: true });
-        }
-    };
-
-    request.onsuccess = function (event) {
-        db = event.target.result;
-        console.log("Database 연결 성공");
-    };
-
-    request.onerror = function (event) {
-        console.error("Database 에러: ", event.target.errorCode);
-    };
-} catch (e) {
-    console.error("IndexedDB를 지원하지 않거나 환경적 제약이 있습니다.", e);
-}
-
-// =======================
-// 3. 공통 유틸: 모바일 OS 판별 / SMS URL 생성
-// =======================
 function getMobileOS() {
     const ua = navigator.userAgent.toLowerCase();
     if (ua.indexOf('android') > -1) return 'android';
@@ -83,63 +46,42 @@ function getSmsUrl() {
     return `sms:${ADMIN_PHONE}${bodyConnector}body=${encodeURIComponent(message)}`;
 }
 
-// =======================================================
-// 4. Google Sheets 전송 + 로컬 IndexedDB 백업 통합 함수
-// =======================================================
-async function saveAndSyncReservation(status) {
+async function saveToGoogleSheet(status) {
     try {
         const name  = document.getElementById('userName').value.trim();
         const phone = document.getElementById('userPhone').value.trim();
-        const countRaw = document.getElementById('userCount')?.value || "1";
-        const count = parseInt(countRaw, 10);
+        const count = document.getElementById('userCount').value + "명";
         const timeRaw = document.getElementById('bookingTime').value || '';
         const time = timeRaw ? timeRaw.replace('T', ' ') : '';
 
-        const newReservation = {
+        const payload = {
             name: name,
             phone: phone,
-            count: count + "명",
+            count: count,
             time: time,
             status: status,
             createdAt: new Date().toISOString()
         };
 
-        // 1단계: 로컬 IndexedDB 백업
-        if (db) {
-            const transaction = db.transaction(["reservations"], "readwrite");
-            const store = transaction.objectStore("reservations");
-            store.add(newReservation);
-            console.log("로컬 IndexedDB 백업 저장 완료");
-        } else {
-            console.warn("로컬 DB가 연결되지 않아 백업을 건너뜁니다.");
+        if (GOOGLE_SHEET_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+            console.warn("구글시트 웹 앱 URL이 설정되지 않았습니다.");
+            return;
         }
 
-        // 2단계: Google Sheets(Apps Script 웹앱)로 전송
-        // ※ Apps Script는 CORS preflight를 처리하지 못하므로
-        //   Content-Type을 text/plain 으로 보내 "단순 요청"으로 만듭니다.
-        console.log("Google Sheets 전송 시작...");
-        await fetch(SHEET_WEBAPP_URL, {
+        await fetch(GOOGLE_SHEET_URL, {
             method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(newReservation)
+            mode: "no-cors", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
         });
-        // no-cors 모드는 응답을 읽을 수 없으므로 예외가 없으면 전송된 것으로 간주
-        console.log("🎉 Google Sheets 전송 요청 완료!");
+        console.log("✅ 구글시트 전송 완료");
 
     } catch (error) {
-        console.error("데이터 전송 또는 저장 중 에러 발생: ", error);
+        console.error("구글시트 전송 에러: ", error);
     }
 }
 
-// =======================================================
-// 5. HTML 버튼에서 호출 가능하도록 전역 바인딩(window.) 처리
-// =======================================================
-
-// [예약하기 메인 버튼 클릭시]
 window.handleBooking = function() {
-    console.log("handleBooking() 함수 시작됨");
-
     const name  = document.getElementById('userName').value.trim();
     const phone = document.getElementById('userPhone').value.trim();
     const count = document.getElementById('userCount').value;
@@ -155,15 +97,9 @@ window.handleBooking = function() {
     }
 
     const modal = document.getElementById('modal');
-    if (modal) {
-        modal.style.display = 'flex';
-        console.log("모달 표시 완료");
-    } else {
-        alert("화면에 모달 레이아웃(id='modal')을 찾을 수 없습니다.");
-    }
+    if (modal) modal.style.display = 'flex';
 };
 
-// [모달 바디 내부 문자/전화 단계 UI 렌더링]
 window.sendSms = function() {
     const modalBody = document.querySelector('.modal-body');
     if (!modalBody) return;
@@ -188,15 +124,11 @@ window.sendSms = function() {
     if (modal) modal.style.display = 'flex';
 };
 
-// [실제 디바이스 문자 앱 켜기]
 window.triggerActualSms = function() {
     const url = getSmsUrl();
-    if (url) {
-        window.location.href = url;
-    }
+    if (url) window.location.href = url;
 };
 
-// [실제 디바이스 전화 앱 켜기]
 window.callToCenter = function() {
     const telLink = document.getElementById('hiddenTelLink');
     if (telLink) {
@@ -207,47 +139,37 @@ window.callToCenter = function() {
     }
 };
 
-// [계좌번호 복사 클릭시]
 window.copyAccount = function() {
-    const account = "79422580482";
+    const account = "79422580482"; 
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(account).then(() => {
             alert("카카오뱅크 계좌번호가 복사되었습니다!\n예약 문자와 전화 단계를 진행해 주세요.");
-            saveAndSyncReservation("입금요청/문자접수");
+            saveToGoogleSheet("입금요청/문자접수");
             window.sendSms();
         }).catch(() => {
-            alert("계좌 복사에 실패했습니다.\n그래도 예약 문자와 전화 단계는 진행할 수 있습니다.");
-            saveAndSyncReservation("입금요청/문자접수");
+            saveToGoogleSheet("입금요청/문자접수");
             window.sendSms();
         });
     } else {
-        alert("이 브라우저에서는 자동 복사가 지원되지 않습니다.\n직접 계좌번호를 확인해 주세요.");
-        saveAndSyncReservation("입금요청/문자접수");
+        saveToGoogleSheet("입금요청/문자접수");
         window.sendSms();
     }
 };
 
-// [현장 결제 클릭시]
 window.handleLaterPay = function() {
-    if (confirm("현장 결제로 예약 문자를 발송하시겠습니까?\n(문자 발송 후 매장 전화 연결을 진행하실 수 있습니다.)")) {
-        saveAndSyncReservation("현장결제요청");
+    if (confirm("현장 결제로 예약 문자를 발송하시겠습니까?")) {
+        saveToGoogleSheet("현장결제요청");
         window.sendSms();
     }
 };
 
-// [모달 닫기]
 window.closeModal = function() {
     const modal = document.getElementById('modal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 };
 
-// [모달 바깥쪽 클릭 시 닫기]
 window.onclick = function(event) {
     const modal = document.getElementById('modal');
-    if (event.target === modal) {
-        window.closeModal();
-    }
+    if (event.target === modal) window.closeModal();
 };
