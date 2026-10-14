@@ -3,140 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>알지골프 - 로컬 관리자 시스템 (독립형)</title>
+    <title>알지골프 - 구글시트 관리자 시스템</title>
     <style>
-        body { font-family: 'Apple SD Gothic Neo', sans-serif; background: #f5f6fa; margin: 0; padding: 15px; }
-        .admin-wrap { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { color: #2c3e50; font-size: 1.4rem; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; 
+            background: #f5f6fa; 
+            margin: 0; 
+            padding: 10px; 
+            color: #2c3e50;
+        }
+        .admin-wrap { 
+            max-width: 500px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 16px; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        }
+        h1 { 
+            color: #2c3e50; 
+            font-size: 1.25rem; 
+            text-align: center; 
+            margin: 10px 0 20px 0; 
+            border-bottom: 2px solid #27ae60; 
+            padding-bottom: 10px; 
+        }
         
-        #loginBox { text-align: center; padding: 40px 20px; }
-        #loginBox input { padding: 12px; font-size: 1.1rem; width: 80%; max-width: 200px; border-radius: 8px; border: 1px solid #ddd; text-align: center; margin-bottom: 15px; }
-        #loginBox button { background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #loginBox { text-align: center; padding: 30px 10px; }
+        #loginBox h2 { font-size: 1.2rem; margin-bottom: 15px; }
+        #loginBox input { 
+            padding: 14px; 
+            font-size: 1.1rem; 
+            width: 100%; 
+            max-width: 240px; 
+            border-radius: 10px; 
+            border: 1px solid #cbd5e0; 
+            text-align: center; 
+            margin-bottom: 15px; 
+        }
+        #loginBox button { 
+            background: #27ae60; 
+            color: white; 
+            border: none; 
+            padding: 14px; 
+            width: 100%;
+            max-width: 240px;
+            border-radius: 10px; 
+            font-weight: bold; 
+            font-size: 1rem;
+            cursor: pointer; 
+        }
         
         #mainDashboard { display: none; }
-        .filter-box { background: #edf2f7; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .date-inputs { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
-        .date-inputs label { font-size: 0.85rem; font-weight: bold; color: #4a5568; }
-        input[type="date"], input[type="text"], input[type="tel"], select { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; }
-        input[type="date"] { width: 42%; }
-        .btn-search { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
         
-        /* 수동 입력 폼 스타일 */
-        .insert-box { background: #e8f4fd; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #bee3f8; }
-        .insert-box h3 { margin: 0 0 5px 0; font-size: 1rem; color: #2b6cb0; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .form-grid input, .form-grid select { width: 100%; }
-        .btn-insert { background: #2b6cb0; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
+        .insert-box { 
+            background: #e8f4fd; 
+            padding: 14px; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            border: 1px solid #bee3f8; 
+        }
+        .insert-box h3 { margin: 0 0 5px 0; font-size: 0.95rem; color: #2b6cb0; }
+        .form-grid { display: flex; flex-direction: column; gap: 8px; }
+        .form-row { display: flex; gap: 8px; }
+        .form-row input, .form-row select { flex: 1; min-width: 0; }
+        
+        input[type="date"], input[type="text"], input[type="tel"], select { 
+            width: 100%;
+            padding: 12px; 
+            border: 1px solid #cbd5e0; 
+            border-radius: 8px; 
+            font-size: 0.9rem; 
+            background-color: #fff;
+            -webkit-appearance: none;
+        }
 
-        /* 정산 UI 스타일 */
-        .settlement-box { background: #fff3cd; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
+        .btn-insert { 
+            background: #2b6cb0; 
+            color: white; 
+            border: none; 
+            padding: 14px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 0.95rem; 
+            margin-top: 4px;
+        }
+
+        .settlement-box { background: #fff3cd; padding: 14px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
         .settlement-box h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: #856404; }
-        .settlement-controls { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-settlement { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
-        .btn-settlement:hover { background: #218838; }
-        .last-settlement-info { background: #f0f0f0; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 0.85rem; color: #333; }
+        .settlement-controls { display: flex; gap: 8px; }
+        .btn-settlement { flex: 1; background: #28a745; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .last-settlement-info { background: #f0f0f0; padding: 8px 10px; border-radius: 6px; margin-top: 8px; font-size: 0.8rem; color: #333; }
 
-        /* 건수 및 인원 합계 */
-        .counter-box { display: flex; justify-content: space-between; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 10px 0; font-size: 0.95rem; border: 1px dashed #cbd5e0; }
+        .filter-box { background: #edf2f7; padding: 14px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .date-inputs { display: flex; align-items: center; gap: 6px; }
+        .date-inputs label { font-size: 0.8rem; font-weight: bold; color: #4a5568; white-space: nowrap; }
+        .date-inputs input[type="date"] { flex: 1; padding: 10px; font-size: 0.85rem; }
+        
+        .btn-search { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; width: 100%; }
+        
+        .counter-box { display: flex; justify-content: space-between; background: #f8f9fa; padding: 10px 12px; border-radius: 8px; margin: 10px 0; font-size: 0.85rem; border: 1px dashed #cbd5e0; }
         .counter-item { font-weight: bold; color: #2d3748; }
-        .counter-item span { color: #e53e3e; font-size: 1.05rem; }
-        .counter-item .total-people { color: #2b6cb0; font-size: 1.05rem; }
+        .counter-item span { color: #e53e3e; font-size: 1rem; }
+        .counter-item .total-people { color: #2b6cb0; font-size: 1rem; }
         
-        .card-list { display: flex; flex-direction: column; gap: 12px; }
-        .card { background: #fff; border: 1px solid #e1e8ed; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .card-list { display: flex; flex-direction: column; gap: 10px; }
+        .card { background: #fff; border: 1px solid #e1e8ed; padding: 12px 14px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
         .card.settled { border-left: 4px solid #28a745; background: #f0fdf4; }
-        .card-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #f1f2f6; padding-bottom: 8px; margin-bottom: 8px; }
+        .card-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #f1f2f6; padding-bottom: 6px; margin-bottom: 6px; font-size: 0.9rem; }
         .card-time { color: #27ae60; }
-        .card-body p { margin: 8px 0; font-size: 0.95rem; }
+        .card-body p { margin: 6px 0; font-size: 0.88rem; }
         
-        .controls { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #edf2f7; flex-wrap: wrap; }
-        .btn-edit { background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; }
-        .btn-sms { background: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; }
-        .btn-delete { background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; margin-left: auto; }
+        .controls { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #edf2f7; }
+        .btn-sms { background: #f39c12; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; width: 100%; }
         
-        .btn-back { display: block; text-align: center; margin-top: 25px; color: #95a5a6; text-decoration: none; }
+        .btn-back { display: block; text-align: center; margin-top: 20px; color: #95a5a6; text-decoration: none; font-size: 0.85rem; padding: 10px; }
+        .btn-excel { background: #1f7246; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; width: 100%; margin-bottom: 12px; }
+        .btn-sheet-view { background: #4285F4; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; width: 100%; margin-bottom: 12px; }
         
-        /* 기능 추가 버튼 스타일 */
-        .btn-excel { background: #1f7246; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 15px; }
-        .btn-link { background: #7f8c8d; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 10px; }
-        
-        /* 마스터 인양 버튼 */
-        .btn-emergency { background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; margin-bottom: 15px; }
-        
-        /* 자동 입력 팝업 스타일 */
-        .autocomplete-suggestion { background: #fff; border: 1px solid #ddd; border-top: none; position: absolute; z-index: 1000; max-height: 150px; overflow-y: auto; width: 45%; margin-top: -8px; border-radius: 0 0 8px 8px; }
-        .autocomplete-suggestion div { padding: 8px 10px; cursor: pointer; font-size: 0.9rem; color: #2c3e50; }
-        .autocomplete-suggestion div:hover { background: #ecf0f1; }
-        .autocomplete-suggestion .suggestion-item-name { font-weight: bold; color: #2b6cb0; }
-        .autocomplete-suggestion .suggestion-item-phone { font-size: 0.8rem; color: #7f8c8d; }
-        
-        .form-grid-wrapper { position: relative; }
-
-        /* 정산 기록 내역 스타일 */
-        .settlement-records-box { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #dee2e6; }
-        .settlement-records-box h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: #343a40; }
-        .settlement-record-card { background: white; border: 1px solid #dee2e6; border-left: 4px solid #28a745; border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 0.85rem; }
-        .sr-row { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+        .settlement-records-box { background: #f8f9fa; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #dee2e6; }
+        .settlement-records-box h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #343a40; }
+        .settlement-record-card { background: white; border: 1px solid #dee2e6; border-left: 4px solid #28a745; border-radius: 8px; padding: 10px; margin-bottom: 6px; font-size: 0.8rem; }
+        .sr-row { display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center; }
         .sr-label { color: #666; }
         .sr-value { font-weight: bold; color: #2d3748; }
-        .sr-account { font-size: 0.8rem; color: #856404; }
     </style>
 </head>
 <body>
 
 <div class="admin-wrap">
+    <!-- 로그인 박스 -->
     <div id="loginBox">
-        <h2>관리자 비밀번호 입력</h2>
-        <input type="password" id="adminPassword" placeholder="암호 4자리 입력" maxlength="4">
+        <h2>관리자 암호 입력</h2>
+        <input type="password" id="adminPassword" placeholder="비밀번호 4자리" maxlength="4" pattern="\d*">
         <br>
         <button onclick="checkPassword()">로그인</button>
     </div>
 
+    <!-- 대시보드 메인 -->
     <div id="mainDashboard">
-        <h1>알지골프 예약 정보 관리 (로컬저장소형)</h1>
+        <h1>알지골프 예약 관리자</h1>
         
+        <!-- 수동 데이터 추가 입력 -->
         <div class="insert-box">
-            <h3>➕ 누락 예약 자료 수동 입력</h3>
+            <h3>➕ 누락 예약 수동 등록 (구글시트 저장)</h3>
             <div class="form-grid">
-                <div class="form-grid-wrapper" style="position: relative;">
-                    <input type="text" id="insName" placeholder="예약자명" onkeyup="showPhoneSuggestion()">
-                    <div id="phoneSuggestion" class="autocomplete-suggestion" style="display: none;"></div>
+                <div class="form-row">
+                    <input type="text" id="insName" placeholder="예약자명">
+                    <input type="tel" id="insPhone" placeholder="연락처(숫자만)">
                 </div>
-                <input type="tel" id="insPhone" placeholder="연락처 (숫자만)">
-                <input type="text" id="insTime" placeholder="예약시간 (예: 14:30)">
-                <input type="text" id="insCount" placeholder="인원수 (예: 4)">
-                <select id="insStatus">
-                    <option value="대기중">대기중</option>
-                    <option value="예약확정">예약확정</option>
-                    <option value="미입금">미입금</option>
-                    <option value="취소건">취소건</option>
-                    <option value="정산완료">정산완료</option>
-                </select>
-                <input type="date" id="insDate" style="width:100%;">
+                <div class="form-row">
+                    <input type="date" id="insDate">
+                    <input type="text" id="insTime" placeholder="시간 (예: 14:30)">
+                </div>
+                <div class="form-row">
+                    <input type="text" id="insCount" placeholder="인원수 (예: 4)">
+                    <select id="insStatus">
+                        <option value="대기중">대기중</option>
+                        <option value="예약확정">예약확정</option>
+                        <option value="미입금">미입금</option>
+                        <option value="취소건">취소건</option>
+                        <option value="정산완료">정산완료</option>
+                    </select>
+                </div>
             </div>
-            <button onclick="insertReservationToLocal()" class="btn-insert">로컬 저장소에 즉시 추가</button>
+            <button onclick="insertReservationToSheet()" id="btnInsertSubmit" class="btn-insert">구글 시트에 즉시 저장</button>
         </div>
 
+        <!-- 정산 관리 -->
         <div class="settlement-box">
             <h3>💰 게임비 정산 관리</h3>
             <div class="settlement-controls">
-                <button onclick="openSettlementModal()" class="btn-settlement">📋 정산완료 기록하기</button>
-                <button onclick="resetSettlementDate()" class="btn-settlement" style="background: #dc3545;">🔄 정산 초기화</button>
+                <button onclick="openSettlementModal()" class="btn-settlement">📋 정산완료 기록</button>
+                <button onclick="resetSettlementDate()" class="btn-settlement" style="background: #dc3545;">🔄 초기화</button>
             </div>
             <div id="settlementInfo" class="last-settlement-info">
                 최근 정산: <span id="lastSettlementDate" style="font-weight: bold; color: #28a745;">기록 없음</span>
             </div>
         </div>
 
+        <!-- 정산 내역 -->
         <div class="settlement-records-box">
-            <h3>📑 정산 기록 내역</h3>
-            <div id="settlementRecordsList"><p style="text-align:center;color:#95a5a6;padding:10px;">정산 기록이 없습니다.</p></div>
+            <h3>📑 최근 정산 내역</h3>
+            <div id="settlementRecordsList"><p style="text-align:center;color:#95a5a6;padding:10px;">기록 없음</p></div>
         </div>
 
+        <!-- 데이터 검색 및 조회 -->
         <div class="filter-box">
             <div class="date-inputs">
                 <label>시작</label>
@@ -144,57 +205,37 @@
                 <label>종료</label>
                 <input type="date" id="endDate">
             </div>
-            <button onclick="fetchData()" class="btn-search">기간 설정 조회</button>
+            <button onclick="fetchData()" class="btn-search">🔍 구글시트 조회</button>
             <button onclick="fetchDataAfterSettlement()" class="btn-search" style="background: #17a2b8;">📊 최근 정산 이후 조회</button>
         </div>
 
+        <!-- 카운터 표시 -->
         <div class="counter-box">
             <div class="counter-item">조회 건수: <span id="totalCount">0</span>건</div>
-            <div class="counter-item">총 인원 합계: <span id="totalPeople" class="total-people">0</span>명</div>
+            <div class="counter-item">총 인원: <span id="totalPeople" class="total-people">0</span>명</div>
         </div>
 
-        <button onclick="exportToExcel()" class="btn-excel">📊 현재 조회된 내역 엑셀(구글시트) 내보내기</button>
-        <button onclick="forceLoadAllData()" class="btn-emergency">🚨 기간 무시 창고 전체 데이터 강제 호출</button>
+        <button onclick="openGoogleSheet()" class="btn-sheet-view">📊 구글시트 보기</button>
+        <button onclick="exportToExcel()" class="btn-excel">📥 현재 조회 목록 CSV 다운로드</button>
 
+        <!-- 예약 카드 목록 -->
         <div class="card-list" id="dataList"></div>
         
-        <button onclick="location.href='firebase_link.html'" class="btn-link">🔥 연동 프로그램 켜기</button>
-        <a href="index.html" class="btn-back">⬅ 메인 예약화면으로 돌아가기</a>
+        <a href="index.html" class="btn-back">⬅ 메인 예약화면 이동</a>
     </div>
 </div>
 
-<!-- 정산 모달 -->
-<div id="settlementModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; padding:25px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); max-width:420px; width:90%;">
-        <h2 style="margin:0 0 15px 0; color:#28a745; font-size:1.2rem;">📋 정산완료 기록</h2>
-        <div style="background:#f8f9fa; padding:14px; border-radius:8px; margin-bottom:15px; font-size:0.9rem; display:flex; flex-direction:column; gap:8px;">
-            <div class="sr-row"><span class="sr-label">정산시작일</span><span id="settlementStartInfo" class="sr-value"></span></div>
-            <div class="sr-row">
-                <span class="sr-label">정산완료일</span>
-                <input type="date" id="settlementDate" style="border:1px solid #ddd; border-radius:6px; padding:4px 8px; font-size:0.9rem;" onchange="updateSettlementPreview()">
-            </div>
-            <div class="sr-row"><span class="sr-label">인원</span><span id="settlementPeople" class="sr-value" style="color:#2b6cb0;"></span></div>
-            <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span id="settlementAmount" class="sr-value" style="color:#28a745;"></span></div>
-            <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span id="settlementCommission" class="sr-value" style="color:#e53e3e;"></span></div>
-            <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">수협 101-023-410261 박시연</span></div>
-        </div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="saveSettlementDate()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">✅ 정산 기록 저장</button>
-            <button onclick="closeSettlementModal()" style="flex:1; background:#ccc; color:#333; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold;">취소</button>
-        </div>
-    </div>
-</div>
-
-<script type="module">
-    let idb = null;
+<script>
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxbvm2m3U9F1gmSee8gg-BMuApUDta1pLUoVQt9V6h0MipamOkPh71gqMQWCPGjqzF7bA/exec";
+    // 구글 스프레드시트 원본 보기 주소 (필요시 실제 시트 주소로 교체 가능)
+    const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1EEnOkCE1tUsroIRGY7UiQly93b0YA7Cn5YBELaGt5Z0/edit?gid=0#gid=0/";
+    
     let currentFetchedData = []; 
+    let cachedSheetData = []; 
     const BANK_ACCOUNT = "카카오뱅크 7942-25-80482 (예금주: 한용섭)";
     const SETTLEMENT_KEY = "lastSettlementDate";
     const SETTLEMENT_RECORDS_KEY = "settlementRecords";
-    const SETTLEMENT_ACCOUNT = "수협 101-023-410261 박시연";
-    const SETTLEMENT_FALLBACK_START = "2020-01-01";
 
-    // 로컬 시간 기준 날짜 문자열 반환 (YYYY-MM-DD)
     function getLocalDateStr(date) {
         const d = date || new Date();
         const yyyy = d.getFullYear();
@@ -203,51 +244,20 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
-    // 로컬 데이터베이스 커넥션 초기화 함수
-    function initIndexedDB() {
-        return new Promise((resolve, reject) => {
-            const dbRequest = indexedDB.open("RG_Golf_DB");
-            dbRequest.onupgradeneeded = function(e) {
-                let database = e.target.result;
-                if (!database.objectStoreNames.contains("reservations")) {
-                    database.createObjectStore("reservations", { keyPath: "id" });
-                }
-            };
-            dbRequest.onsuccess = function(e) {
-                idb = e.target.result;
-                resolve(idb);
-            };
-            dbRequest.onerror = function() {
-                reject("데이터베이스 보관함을 열지 못했습니다.");
-            };
-        });
-    }
-
-    // [수정] 윈도우 스코프 매핑을 명확히 하여 onclick 연동 보장
-    window.checkPassword = function() {
+    function checkPassword() {
         const inputPw = document.getElementById('adminPassword').value;
         if (inputPw === "1806") {
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'block';
             initDates();
-            initIndexedDB().then(() => {
-                displayLastSettlementDate();
-                displaySettlementRecords();
-                window.fetchData(); 
-            }).catch(err => alert(err));
+            displayLastSettlementDate();
+            displaySettlementRecords();
+            fetchData(); 
         } else {
             alert("암호가 일치하지 않습니다.");
             document.getElementById('adminPassword').value = "";
         }
-    };
-
-    // 복원 도구(firebase_link.html)에서 신호를 주면 실시간 화면 자동 갱신
-    window.addEventListener("storage", (event) => {
-        if (event.key === "db_updated_signal") {
-            console.log("🔄 로컬 저장소 동기화 신호 감지 -> 화면 즉시 리프레시");
-            window.fetchData();
-        }
-    });
+    }
 
     function initDates() {
         const today = new Date();
@@ -259,140 +269,208 @@
         document.getElementById('insDate').valueAsDate = today; 
     }
 
-    // 💰 정산 관련 함수들
+    function fetchData() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
 
-    // 기간 내 총 인원 합산 (IndexedDB 조회)
-    function getPeopleCountForPeriod(startDate, endDate) {
-        return new Promise((resolve) => {
-            if (!idb) { resolve(0); return; }
-            try {
-                const transaction = idb.transaction(["reservations"], "readonly");
-                const store = transaction.objectStore("reservations");
-                const request = store.getAll();
-                request.onsuccess = function(event) {
-                    const allItems = event.target.result || [];
-                    let total = 0;
-                    allItems.forEach(item => {
-                        let source = (item.content && typeof item.content === 'object') ? item.content : item;
-                        let fCreatedAt = source.createdAt ? String(source.createdAt).trim() : "";
-                        if (!fCreatedAt || fCreatedAt.length < 10 ||
-                            ["Thu","Fri","Sat","Sun","Mon","Tue","Wed"].some(d => fCreatedAt.includes(d))) {
-                            let rawTime = source.time || item.time || "";
-                            if (rawTime) {
-                                const d = new Date(rawTime);
-                                if (!isNaN(d.getTime())) {
-                                    const yyyy = d.getFullYear();
-                                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                                    const dd = String(d.getDate()).padStart(2, '0');
-                                    fCreatedAt = `${yyyy}-${mm}-${dd}`;
-                                } else {
-                                    fCreatedAt = String(rawTime).trim().length >= 10 ? String(rawTime).trim().substring(0, 10) : getLocalDateStr();
-                                }
-                            } else {
-                                fCreatedAt = getLocalDateStr();
-                            }
-                        } else {
-                            fCreatedAt = fCreatedAt.substring(0, 10);
-                        }
-                        if (fCreatedAt >= startDate && fCreatedAt <= endDate) {
-                            const digits = (source.count || item.count || "1").toString().replace(/[^0-9]/g, "") || "1";
-                            const cnt = parseInt(digits, 10);
-                            if (!isNaN(cnt)) total += cnt;
-                        }
-                    });
-                    resolve(total);
-                };
-                request.onerror = function() { resolve(0); };
-            } catch(e) { resolve(0); }
-        });
-    }
-
-    window.openSettlementModal = async function() {
-        const modal = document.getElementById('settlementModal');
-        const todayStr = getLocalDateStr();
-        document.getElementById('settlementDate').value = todayStr;
-
-        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
-        document.getElementById('settlementStartInfo').innerText = startDate;
-
-        const people = await getPeopleCountForPeriod(startDate, todayStr);
-        document.getElementById('settlementPeople').innerText = people + "명";
-        document.getElementById('settlementAmount').innerText = (people * 9000).toLocaleString() + "원";
-        document.getElementById('settlementCommission').innerText = (people * 1000).toLocaleString() + "원";
-
-        modal.style.display = 'flex';
-    };
-
-    window.updateSettlementPreview = async function() {
-        const endDate = document.getElementById('settlementDate').value;
-        if (!endDate) return;
-        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
-        const people = await getPeopleCountForPeriod(startDate, endDate);
-        document.getElementById('settlementPeople').innerText = people + "명";
-        document.getElementById('settlementAmount').innerText = (people * 9000).toLocaleString() + "원";
-        document.getElementById('settlementCommission').innerText = (people * 1000).toLocaleString() + "원";
-    };
-
-    window.closeSettlementModal = function() {
-        document.getElementById('settlementModal').style.display = 'none';
-    };
-
-    window.saveSettlementDate = async function() {
-        const settlementDate = document.getElementById('settlementDate').value;
-        if (!settlementDate) {
-            alert("정산 날짜를 선택해주세요.");
+        if (!start || !end) {
+            alert("조회 날짜를 선택해주세요.");
             return;
         }
 
-        const startDate = getSettlementStartDate() || SETTLEMENT_FALLBACK_START;
-        const people = await getPeopleCountForPeriod(startDate, settlementDate);
-        const amount = people * 9000;
-        const commission = people * 1000;
+        const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+        
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            const scriptEl = document.getElementById(callbackName);
+            if (scriptEl) scriptEl.remove();
 
-        const newRecord = {
-            startDate: startDate,
-            endDate: settlementDate,
-            people: people,
-            amount: amount,
-            commission: commission,
-            account: SETTLEMENT_ACCOUNT,
-            savedAt: getLocalDateStr()
+            try {
+                cachedSheetData = Array.isArray(data) ? data : [];
+                processAndRenderData(start, end, cachedSheetData);
+            } catch (error) {
+                console.error("데이터 파싱 실패:", error);
+                alert("데이터 분석 중 오류가 발생했습니다.");
+            }
         };
 
-        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
-        records.push(newRecord);
-        localStorage.setItem(SETTLEMENT_RECORDS_KEY, JSON.stringify(records));
+        const script = document.createElement('script');
+        script.id = callbackName;
+        script.src = `${GOOGLE_SHEET_URL}?callback=${callbackName}&_=${Date.now()}`;
+        script.onerror = function() {
+            delete window[callbackName];
+            script.remove();
+            alert("구글시트 데이터를 불러오지 못했습니다. GAS 배포 상태를 확인해주세요.");
+        };
 
-        localStorage.setItem(SETTLEMENT_KEY, settlementDate);
-        alert(`✅ 정산완료 기록: ${settlementDate}\n인원: ${people}명\n정산금액: ${amount.toLocaleString()}원\n수수료: ${commission.toLocaleString()}원\n입금계좌: ${SETTLEMENT_ACCOUNT}`);
-        displayLastSettlementDate();
-        displaySettlementRecords();
-        closeSettlementModal();
-        window.fetchData();
-    };
+        document.body.appendChild(script);
+    }
 
-    window.resetSettlementDate = function() {
-        if (confirm("🚨 정산 기록을 초기화하시겠습니까? (모든 데이터가 포함됩니다)")) {
-            localStorage.removeItem(SETTLEMENT_KEY);
-            localStorage.removeItem(SETTLEMENT_RECORDS_KEY);
-            alert("정산 기록이 초기화되었습니다.");
-            displayLastSettlementDate();
-            displaySettlementRecords();
-            window.fetchData();
+    function processAndRenderData(start, end, rawData) {
+        const parsedData = rawData.map(item => {
+            let name = item.name || item.Name || item["예약자명"] || item["이름"] || "무명";
+            let phone = item.phone || item.Phone || item["연락처"] || item["전화번호"] || "-";
+            let timeStr = item.time || item.Time || item.createdAt || item["시간"] || "";
+            let count = item.count || item.Count || item["인원수"] || item["인원"] || "1명";
+            let status = item.status || item.Status || item["상태"] || "대기중";
+
+            let datePart = "";
+            if (timeStr) {
+                let match = String(timeStr).match(/\d{4}-\d{2}-\d{2}/);
+                datePart = match ? match[0] : (String(timeStr).substring(0, 10));
+            }
+            if (!datePart || datePart.length < 10) {
+                datePart = item.createdAt ? String(item.createdAt).substring(0, 10) : getLocalDateStr();
+            }
+
+            return {
+                name: name,
+                phone: phone,
+                time: timeStr || datePart,
+                count: count,
+                status: status,
+                createdAt: datePart
+            };
+        });
+
+        const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
+        filteredData.sort((a, b) => new Date(String(b.time).replace(/-/g, '/')) - new Date(String(a.time).replace(/-/g, '/')));
+        
+        currentFetchedData = filteredData;
+        renderList(filteredData);
+    }
+
+    async function insertReservationToSheet() {
+        const name = document.getElementById('insName').value.trim();
+        const phone = document.getElementById('insPhone').value.trim();
+        const time = document.getElementById('insTime').value.trim();
+        let count = document.getElementById('insCount').value.trim();
+        const status = document.getElementById('insStatus').value;
+        const dateVal = document.getElementById('insDate').value;
+
+        if (!name || !phone || !time || !count || !dateVal) {
+            alert("모든 빈칸 항목을 입력해주세요.");
+            return;
         }
-    };
+
+        if (!count.includes('명')) count = count + "명";
+
+        const btn = document.getElementById('btnInsertSubmit');
+        btn.disabled = true;
+        btn.innerText = "전송 중...";
+
+        const payload = {
+            name: name,
+            phone: phone.replace(/[^0-9]/g, ''),
+            count: count,
+            time: `${dateVal} ${time}`,
+            status: status,
+            createdAt: new Date().toISOString()
+        };
+
+        try {
+            await fetch(GOOGLE_SHEET_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            alert(`[${name}]님 예약 자료 전송 완료!`);
+            document.getElementById('insName').value = "";
+            document.getElementById('insPhone').value = "";
+            document.getElementById('insTime').value = "";
+            document.getElementById('insCount').value = "";
+            
+            setTimeout(() => { fetchData(); }, 1000);
+        } catch (error) {
+            alert("구글 시트 전송 실패: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "구글 시트에 즉시 저장";
+        }
+    }
+
+    function renderList(data) {
+        const container = document.getElementById('dataList');
+        container.innerHTML = "";
+        
+        document.getElementById('totalCount').innerText = data.length;
+
+        let totalPeopleSum = 0;
+        data.forEach(item => {
+            if (item.count) {
+                const num = parseInt(item.count.toString().replace(/[^0-9]/g, ""), 10);
+                if (!isNaN(num)) totalPeopleSum += num;
+            }
+        });
+        document.getElementById('totalPeople').innerText = totalPeopleSum;
+
+        if (data.length === 0) {
+            container.innerHTML = "<p style='text-align:center;color:#95a5a6;padding:30px;font-size:0.9rem;'>조회 조건에 해당하는 내역이 없습니다.</p>";
+            return;
+        }
+
+        data.forEach(item => {
+            const isSettled = item.status === "정산완료";
+            const cardClass = isSettled ? "card settled" : "card";
+            const statusBadge = isSettled 
+                ? `<span style="background:#28a745; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">✅ 정산완료</span>` 
+                : `<span style="font-weight:bold; color:#2b6cb0;">[${item.status}]</span>`;
+            
+            container.innerHTML += `
+                <div class="${cardClass}">
+                    <div class="card-header">
+                        <span class="card-time">⏰ ${item.time}</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="card-body">
+                        <p><strong>예약자:</strong> ${item.name} (${item.count})</p>
+                        <p><strong>연락처:</strong> <a href="tel:${item.phone}" style="color:#2980b9; text-decoration:none;">${item.phone}</a></p>
+                        <div class="controls">
+                            <button onclick="sendUnpaidSms('${item.name}', '${item.phone}')" class="btn-sms">💬 미입금 안내 문자 발송</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function sendUnpaidSms(name, phone) {
+        const message = `[알지골프] 안녕하세요 ${name}님, 예약 건에 대해 입금 확인 부탁드립니다.\n■ 계좌: ${BANK_ACCOUNT}`;
+        window.location.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+    }
+
+    function openGoogleSheet() {
+        window.open(GOOGLE_SHEET_VIEW_URL, '_blank');
+    }
+
+    function exportToExcel() {
+        if (currentFetchedData.length === 0) {
+            alert("다운로드할 데이터가 없습니다.");
+            return;
+        }
+
+        let csvContent = "\uFEFF예약일시,상태,예약자명,인원수,연락처\n";
+        currentFetchedData.forEach(item => {
+            csvContent += `"${item.time}","${item.status}","${item.name}","${item.count}","${item.phone}"\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `알지골프_예약목록_${document.getElementById('startDate').value}_to_${document.getElementById('endDate').value}.csv`;
+        link.click();
+    }
 
     function displayLastSettlementDate() {
         const lastDate = localStorage.getItem(SETTLEMENT_KEY);
         const display = document.getElementById('lastSettlementDate');
         if (lastDate) {
-            const nextDay = new Date(lastDate);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextDateStr = nextDay.toISOString().substring(0, 10);
-            display.innerText = `${lastDate} (집계: ${nextDateStr} 이후)`;
+            display.innerText = `${lastDate} 정산`;
             display.style.color = '#28a745';
         } else {
-            display.innerText = '기록 없음 (전체 집계)';
+            display.innerText = '기록 없음';
             display.style.color = '#e53e3e';
         }
     }
@@ -403,511 +481,39 @@
         if (!container) return;
 
         if (records.length === 0) {
-            container.innerHTML = '<p style="text-align:center;color:#95a5a6;padding:10px;">정산 기록이 없습니다.</p>';
+            container.innerHTML = '<p style="text-align:center;color:#95a5a6;padding:10px;font-size:0.8rem;">기록 없음</p>';
             return;
         }
 
-        const escapeHtml = (v) =>
-            String(v ?? '').replace(/[&<>"']/g, (c) => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[c]));
         const reversed = [...records].reverse();
-        container.innerHTML = reversed.map((r, i) => {
-            const origIndex = records.length - 1 - i;
-            const people = Number(r.people) || 0;
-            const amount = Number(r.amount) || 0;
-            const commission = Number(r.commission) || 0;
-            return `
-                <div class="settlement-record-card">
-                    <div class="sr-row"><span class="sr-label">정산시작일</span><span class="sr-value">${escapeHtml(r.startDate)}</span></div>
-                    <div class="sr-row"><span class="sr-label">정산완료일</span><span class="sr-value">${escapeHtml(r.endDate)}</span></div>
-                    <div class="sr-row"><span class="sr-label">인원</span><span class="sr-value" style="color:#2b6cb0;">${people}명</span></div>
-                    <div class="sr-row"><span class="sr-label">정산금액 (인원×9,000원)</span><span class="sr-value" style="color:#28a745;">${amount.toLocaleString()}원</span></div>
-                    <div class="sr-row"><span class="sr-label">수수료 (인원×1,000원)</span><span class="sr-value" style="color:#e53e3e;">${commission.toLocaleString()}원</span></div>
-                    <div class="sr-row"><span class="sr-label">입금계좌</span><span class="sr-value sr-account">${escapeHtml(r.account)}</span></div>
-                    <button data-idx="${origIndex}" class="btn-delete-settlement" style="margin-top:8px; background:#e74c3c; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">🗑️ 삭제</button>
-                </div>
-            `;
-        }).join('');
-
-        container.querySelectorAll('.btn-delete-settlement').forEach(btn => {
-            btn.addEventListener('click', function() {
-                window.deleteSettlementRecord(parseInt(this.dataset.idx, 10));
-            });
-        });
+        container.innerHTML = reversed.map((r, i) => `
+            <div class="settlement-record-card">
+                <div class="sr-row"><span class="sr-label">기간</span><span class="sr-value">${r.startDate} ~ ${r.endDate}</span></div>
+                <div class="sr-row"><span class="sr-label">인원/금액</span><span class="sr-value" style="color:#28a745;">${r.people}명 (${Number(r.amount).toLocaleString()}원)</span></div>
+            </div>
+        `).join('');
     }
 
-    window.deleteSettlementRecord = function(index) {
-        const records = JSON.parse(localStorage.getItem(SETTLEMENT_RECORDS_KEY) || "[]");
-        if (!Number.isInteger(index) || index < 0 || index >= records.length) return;
-
-        if (confirm("해당 정산 기록을 삭제하시겠습니까?")) {
-            records.splice(index, 1);
-            localStorage.setItem(SETTLEMENT_RECORDS_KEY, JSON.stringify(records));
+    function resetSettlementDate() {
+        if (confirm("정산 기록을 초기화하시겠습니까?")) {
+            localStorage.removeItem(SETTLEMENT_KEY);
+            localStorage.removeItem(SETTLEMENT_RECORDS_KEY);
+            displayLastSettlementDate();
             displaySettlementRecords();
+            fetchData();
         }
-    };
+    }
 
-    function getSettlementStartDate() {
+    function fetchDataAfterSettlement() {
         const lastDate = localStorage.getItem(SETTLEMENT_KEY);
-        if (!lastDate) return null;
-        
-        const nextDay = new Date(lastDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-        return nextDay.toISOString().substring(0, 10);
+        if (!lastDate) {
+            alert("정산 기록이 없습니다.");
+            return;
+        }
+        document.getElementById('startDate').value = lastDate;
+        document.getElementById('endDate').value = getLocalDateStr();
+        fetchData();
     }
-
-    // 📱 이름 입력 시 전화번호 자동 입력 기능
-    window.showPhoneSuggestion = function() {
-        const nameInput = document.getElementById('insName').value.trim();
-        const suggestionBox = document.getElementById('phoneSuggestion');
-        
-        if (!nameInput || nameInput.length === 0) {
-            suggestionBox.style.display = 'none';
-            return;
-        }
-
-        if (!idb) {
-            suggestionBox.style.display = 'none';
-            return;
-        }
-
-        try {
-            const transaction = idb.transaction(["reservations"], "readonly");
-            const store = transaction.objectStore("reservations");
-            const request = store.getAll();
-
-            request.onsuccess = function(event) {
-                const allItems = event.target.result || [];
-                
-                // 입력한 이름과 일치하는 모든 예약 찾기
-                const matches = allItems.filter(item => {
-                    const source = (item.content && typeof item.content === 'object') ? item.content : item;
-                    const itemName = source.name || item.name || "";
-                    return itemName.toLowerCase().includes(nameInput.toLowerCase());
-                });
-
-                if (matches.length === 0) {
-                    suggestionBox.style.display = 'none';
-                    return;
-                }
-
-                // 중복 제거 (같은 이름의 여러 전화번호 표시)
-                const uniquePhones = {};
-                matches.forEach(item => {
-                    const source = (item.content && typeof item.content === 'object') ? item.content : item;
-                    const name = source.name || item.name || "";
-                    const phone = source.phone || item.phone || "-";
-                    
-                    if (phone !== "-" && !uniquePhones[phone]) {
-                        uniquePhones[phone] = name;
-                    }
-                });
-
-                if (Object.keys(uniquePhones).length === 0) {
-                    suggestionBox.style.display = 'none';
-                    return;
-                }
-
-                // 드롭다운 목록 생성
-                let html = "";
-                Object.entries(uniquePhones).forEach(([phone, name]) => {
-                    html += `
-                        <div onclick="selectPhoneNumber('${phone}')">
-                            <div class="suggestion-item-name">📞 ${phone}</div>
-                            <div class="suggestion-item-phone">${name}</div>
-                        </div>
-                    `;
-                });
-
-                suggestionBox.innerHTML = html;
-                suggestionBox.style.display = 'block';
-            };
-        } catch (err) {
-            console.error("자동 입력 오류:", err);
-            suggestionBox.style.display = 'none';
-        }
-    };
-
-    // 제안된 전화번호 선택
-    window.selectPhoneNumber = function(phone) {
-        document.getElementById('insPhone').value = phone;
-        document.getElementById('phoneSuggestion').style.display = 'none';
-    };
-
-    // 📦 브라우저 고유 창고에서 기간별 데이터 파싱 및 안전 매핑 엔진
-    window.fetchData = function() {
-        const start = document.getElementById('startDate').value;
-        const end = document.getElementById('endDate').value;
-
-        if (!start || !end) {
-            alert("조회 시작일자와 종료일자를 모두 입력해주세요.");
-            return;
-        }
-
-        if (!idb) {
-            initIndexedDB().then(() => window.fetchData());
-            return;
-        }
-
-        try {
-            const transaction = idb.transaction(["reservations"], "readonly");
-            const store = transaction.objectStore("reservations");
-            const request = store.getAll();
-
-            request.onsuccess = function(event) {
-                const allItems = event.target.result || [];
-                const parsedData = [];
-
-                allItems.forEach(item => {
-                    try {
-                        let source = (item.content && typeof item.content === 'object') ? item.content : item;
-                        
-                        let rawTime = source.time || item.time || "";
-                        let formattedTime = "";
-                        let targetDate = ""; 
-
-                        if (rawTime) {
-                            const d = new Date(rawTime);
-                            if (!isNaN(d.getTime())) {
-                                const yyyy = d.getFullYear();
-                                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                                const dd = String(d.getDate()).padStart(2, '0');
-                                const hh = String(d.getHours()).padStart(2, '0');
-                                const mi = String(d.getMinutes()).padStart(2, '0');
-                                
-                                formattedTime = `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-                                targetDate = `${yyyy}-${mm}-${dd}`;
-                            } else {
-                                formattedTime = String(rawTime).trim();
-                                targetDate = formattedTime.length >= 10 ? formattedTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
-                            }
-                        } else {
-                            targetDate = new Date().toISOString().substring(0, 10);
-                            formattedTime = targetDate + " 00:00";
-                        }
-
-                        let fCreatedAt = source.createdAt ? String(source.createdAt).trim() : "";
-                        if (!fCreatedAt || fCreatedAt.length < 10 || fCreatedAt.includes("Thu") || fCreatedAt.includes("Fri") || fCreatedAt.includes("Sat") || fCreatedAt.includes("Sun") || fCreatedAt.includes("Mon") || fCreatedAt.includes("Tue") || fCreatedAt.includes("Wed")) {
-                            fCreatedAt = targetDate; 
-                        } else {
-                            fCreatedAt = fCreatedAt.substring(0, 10);
-                        }
-
-                        parsedData.push({
-                            id: String(item.id || source.id || "ID_" + Math.random()),
-                            name: source.name || item.name || "무명",
-                            phone: source.phone || item.phone || "-",
-                            time: formattedTime, 
-                            count: source.count || item.count || "1명",
-                            status: source.status || item.status || "대기중",
-                            createdAt: fCreatedAt 
-                        });
-                    } catch (e) {
-                        console.error("데이터 변환 중 스킵된 항목:", e);
-                    }
-                });
-
-                // 달력 범위 조건 필터링
-                const filteredData = parsedData.filter(item => item.createdAt >= start && item.createdAt <= end);
-                
-                // 최신 예약 순 정렬
-                filteredData.sort((a, b) => {
-                    const timeA = new Date(a.time.replace(/-/g, '/')).getTime() || 0;
-                    const timeB = new Date(b.time.replace(/-/g, '/')).getTime() || 0;
-                    return timeB - timeA;
-                });
-                
-                currentFetchedData = filteredData;
-                renderList(filteredData);
-            };
-        } catch (error) {
-            console.error("로컬 저장소 조회 실패:", error);
-            alert("저장소에서 데이터를 불러오는데 실패했습니다.");
-        }
-    };
-
-    // 🎯 최근 정산 이후 데이터만 조회
-    window.fetchDataAfterSettlement = function() {
-        const settlementStart = getSettlementStartDate();
-        if (!settlementStart) {
-            alert("정산 기록이 없습니다. 먼저 정산을 기록해주세요.");
-            return;
-        }
-
-        const today = getLocalDateStr();
-        document.getElementById('startDate').value = settlementStart;
-        document.getElementById('endDate').value = today;
-        window.fetchData();
-    };
-
-    // 🚨 날짜 필터 무시하고 창고 안의 데이터 무조건 다 긁어오는 강제 인양 엔진
-    window.forceLoadAllData = function() {
-        if (!idb) {
-            alert("데이터베이스가 초기화되지 않았습니다.");
-            return;
-        }
-        const transaction = idb.transaction(["reservations"], "readonly");
-        const store = transaction.objectStore("reservations");
-        const request = store.getAll();
-
-        request.onsuccess = function(event) {
-            const allItems = event.target.result || [];
-            if(allItems.length === 0) {
-                alert("창고가 완전히 비어있습니다.");
-                return;
-            }
-
-            const forcedData = allItems.map(item => {
-                let source = (item.content && typeof item.content === 'object') ? item.content : item;
-                return {
-                    id: item.id || source.id,
-                    name: source.name || item.name || "무명",
-                    phone: source.phone || item.phone || "-",
-                    time: source.time || item.time || "-",
-                    count: source.count || item.count || "1명",
-                    status: source.status || item.status || "대기중",
-                    createdAt: source.createdAt || ""
-                };
-            });
-
-            currentFetchedData = forcedData;
-            renderList(forcedData);
-            alert(`🎯 성공: 기간 필터를 무시하고 창고 내부 자료 [${forcedData.length}건]을 강제 렌더링했습니다.`);
-        };
-    };
-
-    // 🌟 로컬 전용 예약 수동 다이렉트 추가 엔진
-    window.insertReservationToLocal = function() {
-        const name = document.getElementById('insName').value.trim();
-        const phone = document.getElementById('insPhone').value.trim();
-        const time = document.getElementById('insTime').value.trim();
-        let count = document.getElementById('insCount').value.trim();
-        const status = document.getElementById('insStatus').value;
-        const dateVal = document.getElementById('insDate').value;
-
-        if (!name || !phone || !time || !count || !dateVal) {
-            alert("빈칸 없이 모든 예약 정보를 입력해주세요.");
-            return;
-        }
-
-        if(!count.includes('명')) { count = count + "명"; }
-        const numericCount = parseInt(count.replace(/[^0-9]/g, ""), 10) || 1;
-        const generatedId = "ID_" + Date.now();
-
-        const newRecord = {
-            id: generatedId,
-            name: name,
-            phone: phone.replace(/[^0-9]/g, ''),
-            count: count,
-            numericCount: numericCount,
-            time: `${dateVal} ${time}`,
-            status: status,
-            createdAt: dateVal,
-            content: {
-                id: generatedId,
-                name: name,
-                phone: phone.replace(/[^0-9]/g, ''),
-                count: count,
-                time: `${dateVal} ${time}`,
-                status: status,
-                createdAt: dateVal
-            }
-        };
-
-        try {
-            const transaction = idb.transaction(["reservations"], "readwrite");
-            const store = transaction.objectStore("reservations");
-            store.put(newRecord);
-
-            transaction.oncomplete = function() {
-                alert(`[${name}]님의 예약 자료를 로컬 저장소에 정상 추가했습니다.`);
-                document.getElementById('insName').value = "";
-                document.getElementById('insPhone').value = "";
-                document.getElementById('insTime').value = "";
-                document.getElementById('insCount').value = "";
-                document.getElementById('phoneSuggestion').style.display = 'none';
-                window.fetchData(); 
-            };
-        } catch (error) {
-            alert("로컬 저장소 저장 실패: " + error.message);
-        }
-    };
-
-    // 카드 UI 템플릿 실시간 렌더링 함수
-    function renderList(data) {
-        const container = document.getElementById('dataList');
-        container.innerHTML = "";
-        
-        document.getElementById('totalCount').innerText = data.length;
-
-        let totalPeopleSum = 0;
-        data.forEach(item => {
-            if(item.count) {
-                const num = parseInt(item.count.toString().replace(/[^0-9]/g, ""), 10);
-                if(!isNaN(num)) { totalPeopleSum += num; }
-            }
-        });
-        document.getElementById('totalPeople').innerText = totalPeopleSum;
-
-        if(data.length === 0) {
-            container.innerHTML = "<p style='text-align:center;color:#95a5a6;padding:30px;'>조회 조건에 부합하는 예약 내역이 없습니다.</p>";
-            return;
-        }
-
-        data.forEach(item => {
-            const isSettled = item.status === "정산완료";
-            const cardClass = isSettled ? "card settled" : "card";
-            const statusBadge = isSettled ? `<span style="background:#28a745; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">✅ 정산됨</span>` : `<span id="status-text-${item.id}" style="font-weight:bold; color:#2b6cb0;">[${item.status}]</span>`;
-            
-            const cardHtml = `
-                <div class="${cardClass}" id="card-${item.id}">
-                    <div class="card-header">
-                        <span class="card-time">⏰ ${item.time}</span>
-                        ${statusBadge}
-                    </div>
-                    <div class="card-body">
-                        <p><strong>예약자:</strong> ${item.name}</p>
-                        <p><strong>인원수:</strong> <span id="count-text-${item.id}">${item.count}</span></p>
-                        <p><strong>연락처:</strong> <a href="tel:${item.phone}" style="color:#2980b9; text-decoration:none;">${item.phone}</a></p>
-                        
-                        <div class="controls">
-                            <button onclick="updateReservation('${item.id}')" class="btn-edit">✏️ 정보수정</button>
-                            <button onclick="sendUnpaidSms('${item.name}', '${item.phone}')" class="btn-sms">💬 미입금 안내</button>
-                            <button onclick="deleteReservation('${item.id}')" class="btn-delete">🗑️ 삭제</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.innerHTML += cardHtml;
-        });
-    }
-
-    window.exportToExcel = function() {
-        if (currentFetchedData.length === 0) {
-            alert("내보낼 데이터가 없습니다. 먼저 데이터를 조회해 주세요.");
-            return;
-        }
-
-        let csvContent = "\uFEFF"; 
-        csvContent += "예약일시,상태,예약자명,인원수,연락처\n";
-
-        currentFetchedData.forEach(item => {
-            const row = [
-                `"${item.time}"`,
-                `"${item.status}"`,
-                `"${item.name}"`,
-                `"${item.count}"`,
-                `"${item.phone}"`
-            ].join(",");
-            csvContent += row + "\n";
-        });
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        
-        const start = document.getElementById('startDate').value || "전체";
-        const end = document.getElementById('endDate').value || "전체";
-        
-        link.setAttribute("href", url);
-        link.setAttribute("download", `알지골프_예약리스트_${start}_to_${end}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    window.sendUnpaidSms = function(name, phone) {
-        const message = `[알지골프] 안녕하세요 ${name}님, 예약 건에 대해 입금이 확인 안 되니 확인해 주시기 바랍니다. \n■ 입금계좌: ${BANK_ACCOUNT}`;
-        const encodedMsg = encodeURIComponent(message);
-        let smsUrl = `sms:${phone}?body=${encodedMsg}`;
-        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            smsUrl = `sms:${phone}&body=${encodedMsg}`;
-        }
-        navigator.clipboard.writeText(message).then(() => {
-            alert("미입금 안내 문자가 클립보드에 자동 복사되었습니다!\n문자창이 열리면 붙여넣기 하실 수 있습니다.");
-            window.location.href = smsUrl; 
-        }).catch(() => {
-            window.location.href = smsUrl;
-        });
-    };
-
-    window.updateReservation = function(id) {
-        try {
-            const transaction = idb.transaction(["reservations"], "readwrite");
-            const store = transaction.objectStore("reservations");
-            const getRequest = store.get(id);
-
-            getRequest.onsuccess = function(e) {
-                const item = e.target.result;
-                if (!item) return;
-
-                let source = (item.content && typeof item.content === 'object') ? item.content : item;
-
-                let newCount = prompt("변경할 예약 인원수를 입력하세요:", source.count || item.count);
-                if (newCount === null) return; 
-                if (newCount.trim() !== "" && !newCount.includes('명')) {
-                    newCount = newCount.trim() + "명";
-                }
-                const newStatus = prompt("변경할 접수 상태를 입력하세요:\n- 대기중\n- 예약확정\n- 미입금\n- 취소건\n- 정산완료", source.status || item.status);
-                if (newStatus === null) return;
-
-                const numericCount = parseInt(newCount.replace(/[^0-9]/g, ""), 10) || 1;
-
-                item.count = newCount;
-                item.status = newStatus;
-                item.numericCount = numericCount;
-
-                item.content = {
-                    id: id,
-                    name: source.name || item.name,
-                    phone: source.phone || item.phone,
-                    count: newCount,
-                    time: source.time || item.time,
-                    status: newStatus,
-                    createdAt: source.createdAt || item.createdAt
-                };
-
-                const updateRequest = store.put(item);
-                updateRequest.onsuccess = function() {
-                    alert("로컬 보관함 정보가 성공적으로 변경되었습니다.");
-                    window.fetchData(); 
-                };
-            };
-        } catch (e) {
-            alert("수정 처리 중 에러가 발생했습니다.");
-        }
-    };
-
-    window.deleteReservation = function(id) {
-        if (confirm("정말로 해당 예약 내역을 로컬 보관함에서 영구 삭제하시겠습니까?")) {
-            try {
-                const transaction = idb.transaction(["reservations"], "readwrite");
-                const store = transaction.objectStore("reservations");
-                const deleteRequest = store.delete(id);
-                
-                deleteRequest.onsuccess = function() {
-                    alert("해당 예약 데이터가 정상 삭제되었습니다.");
-                    window.fetchData(); 
-                };
-            } catch(e) {
-                alert("삭제 처리 중 에러가 발생했습니다.");
-            }
-        }
-    };
-
-    // 모달 외부 클릭 시 닫기
-    window.addEventListener('click', function(event) {
-        const modal = document.getElementById('settlementModal');
-        if (event.target === modal) {
-            closeSettlementModal();
-        }
-    });
 </script>
 </body>
 </html>
